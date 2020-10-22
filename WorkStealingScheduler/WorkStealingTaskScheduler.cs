@@ -73,8 +73,10 @@ namespace WorkStealingScheduler
             }
         }
 
-        public WorkStealingTaskScheduler(int numThreads)
+        public WorkStealingTaskScheduler(int numThreads, ITaskSchedulerLogger? logger)
         {
+            _logger = logger ?? new NullTaskSchedulerLogger();
+
             if (numThreads <= 0 || numThreads > Environment.ProcessorCount * 32)
                 throw new ArgumentOutOfRangeException(nameof(numThreads));
 
@@ -170,6 +172,8 @@ namespace WorkStealingScheduler
 
         #endregion
 
+        private readonly ITaskSchedulerLogger _logger;
+
         /// <summary>
         /// Get the floor of the logarithm to the base of two for an integer.
         /// </summary>
@@ -187,13 +191,22 @@ namespace WorkStealingScheduler
 
         private static readonly int Log2Frequency;
 
+        /// <summary>
+        /// Try to steal an item off the end of the queue of a randomly-
+        /// selected worker.
+        /// </summary>
+        /// <param name="workItem">Set to the item stolen off some queue. </param>
+        /// <returns>Whether an item has successfully been stolen. </returns>
         private bool TryStealWorkItem(out WorkItem workItem)
         {
             var workers = this._currentWorker.Values;
 
+            // Randomly pick a worker
             var numWorkers = workers.Count;
             var startIndex = (int)(((uint)(Stopwatch.GetTimestamp() >> Log2Frequency)) % (uint)numWorkers);
 
+            // Scan each worker starting from the one picked above until
+            // we can steal an item
             int i = startIndex;
             do
             {
@@ -341,6 +354,9 @@ namespace WorkStealingScheduler
                 {
                     this.master._currentWorker.Value = this;
 
+                    var logger = this.master._logger;
+                    ITaskSchedulerLogger.SourceQueue whichQueue;
+
                     while (true)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
@@ -350,16 +366,15 @@ namespace WorkStealingScheduler
                         if (localQueue.TryPop(out workItem))
                         {
                             Interlocked.Decrement(ref numLocalItems);
-
-                            // Log message that localQueue has been processed
+                            whichQueue = ITaskSchedulerLogger.SourceQueue.Local;
                         }
                         else if (master._globalQueue.TryDequeue(out workItem))
                         {
-                            // Log message that globalQueue has been processed
+                            whichQueue = ITaskSchedulerLogger.SourceQueue.Global;
                         }
                         else if (master.TryStealWorkItem(out workItem))
                         {
-                            // Log message that item has been stolen from another worker
+                            whichQueue = ITaskSchedulerLogger.SourceQueue.Stolen;
                         }
                         else
                         {
@@ -368,7 +383,17 @@ namespace WorkStealingScheduler
                         }
 
                         if (workItem.TaskToRun != null)
-                            master.TryExecuteTask(workItem.TaskToRun);
+                        {
+                            try
+                            {
+                                logger.BeginTask(whichQueue);
+                                master.TryExecuteTask(workItem.TaskToRun);
+                            }
+                            finally
+                            {
+                                logger.EndTask(whichQueue);
+                            }
+                        }
                     }
                 }
                 catch (OperationCanceledException)
