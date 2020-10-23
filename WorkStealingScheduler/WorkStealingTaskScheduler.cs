@@ -58,21 +58,6 @@ namespace WorkStealingScheduler
         /// </remarks>
         private SemaphoreSlim _semaphore = new SemaphoreSlim(0);
 
-        private class SyncContextAdaptor : SynchronizationContext
-        {
-            private readonly WorkStealingTaskScheduler _master;
-
-            public SyncContextAdaptor(WorkStealingTaskScheduler master)
-            {
-                _master = master;
-            }
-
-            public override void Post(SendOrPostCallback d, object state)
-            {
-                
-            }
-        }
-
         public WorkStealingTaskScheduler(int numThreads, ITaskSchedulerLogger? logger)
         {
             _logger = logger ?? new NullTaskSchedulerLogger();
