@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -175,35 +174,6 @@ namespace WorkStealingScheduler
         }
 
         private static readonly int Log2Frequency;
-
-        /// <summary>
-        /// Try to steal an item off the end of the queue of a randomly-
-        /// selected worker.
-        /// </summary>
-        /// <param name="workItem">Set to the item stolen off some queue. </param>
-        /// <returns>Whether an item has successfully been stolen. </returns>
-        private bool TryStealWorkItem(out WorkItem workItem)
-        {
-            var workers = this._currentWorker.Values;
-
-            // Randomly pick a worker
-            var numWorkers = workers.Count;
-            var startIndex = (int)(((uint)(Stopwatch.GetTimestamp() >> Log2Frequency)) % (uint)numWorkers);
-
-            // Scan each worker starting from the one picked above until
-            // we can steal an item
-            int i = startIndex;
-            do
-            {
-                if (workers[i].TrySteal(out workItem))
-                    return true;
-
-                if (++i == numWorkers)
-                    i = 0;
-            } while (i != startIndex);
-
-            return false;
-        }
 
         public void Dispose()
         {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace WorkStealingScheduler
@@ -66,6 +67,40 @@ namespace WorkStealingScheduler
                     return true;
                 }
 
+                return false;
+            }
+
+            /// <summary>
+            /// Try to steal an item off the end of the queue of a randomly-
+            /// selected worker.
+            /// </summary>
+            /// <param name="workItem">Set to the item stolen off some queue. </param>
+            /// <returns>Whether an item has successfully been stolen. </returns>
+            private bool TryStealWorkItem(out WorkItem workItem)
+            {
+                var workers = this.master._currentWorker.Values;
+
+                // Randomly pick a worker
+                var numWorkers = workers.Count;
+                var startIndex = (int)(((uint)(Stopwatch.GetTimestamp() >> Log2Frequency)) % (uint)numWorkers);
+
+                // Scan each worker starting from the one picked above until
+                // we can steal an item
+                int i = startIndex;
+                do
+                {
+                    var worker = workers[i];
+
+                    // Do not steal from self
+                    if (worker != this && worker.TrySteal(out workItem))
+                        return true;
+
+                    // Try next worker, wrapping around the end of the array
+                    if (++i == numWorkers)
+                        i = 0;
+                } while (i != startIndex);
+
+                workItem = default;
                 return false;
             }
 
@@ -150,7 +185,7 @@ namespace WorkStealingScheduler
                         {
                             whichQueue = ITaskSchedulerLogger.SourceQueue.Global;
                         }
-                        else if (master.TryStealWorkItem(out workItem))
+                        else if (TryStealWorkItem(out workItem))
                         {
                             whichQueue = ITaskSchedulerLogger.SourceQueue.Stolen;
                         }
