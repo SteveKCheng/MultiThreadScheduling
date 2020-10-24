@@ -22,9 +22,25 @@ namespace WorkStealingScheduler
             /// </summary>
             private readonly WorkStealingTaskScheduler master;
 
+            /// <summary>
+            /// Flag to signal to the master that this worker has voluntarily stopped
+            /// processing work forever, and should be removed from the
+            /// array of workers.
+            /// </summary>
+            /// <remarks>
+            /// To simplify the implementation, this flag is not set if the worker 
+            /// stops because of a critical error.  Thus a failed worker will hang
+            /// around.  This behavior can actually be helpful for debugging.  
+            /// To recover, the application will typically have to be restarted anyway
+            /// at the process level, so we do not attempt autonomous recovery 
+            /// of the worker thread.
+            /// </remarks>
+            public bool HasQuit => _hasQuit;
 
-            private readonly CancellationTokenSource cancellationTokenSource;
-            private readonly CancellationToken cancellationToken;
+            /// <summary>
+            /// Backing field for <see cref="HasQuit"/> property.
+            /// </summary>
+            private bool _hasQuit = false;
 
             /// <summary>
             /// The number of items in the local deque. 
@@ -78,10 +94,10 @@ namespace WorkStealingScheduler
             /// <returns>Whether an item has successfully been stolen. </returns>
             private bool TryStealWorkItem(out WorkItem workItem)
             {
-                var workers = this.master._currentWorker.Values;
+                var workers = this.master._allWorkers;
 
                 // Randomly pick a worker
-                var numWorkers = workers.Count;
+                var numWorkers = workers.Length;
                 var startIndex = (int)(((uint)(Stopwatch.GetTimestamp() >> Log2Frequency)) % (uint)numWorkers);
 
                 // Scan each worker starting from the one picked above until
@@ -125,55 +141,55 @@ namespace WorkStealingScheduler
             {
                 this.master = master;
                 this.localQueue = new ChaseLevQueue<WorkItem>(initialDequeCapacity);
-                this.cancellationTokenSource = new CancellationTokenSource();
             }
 
+            /// <summary>
+            /// Cached delegate for the worker thread.
+            /// </summary>
             private static readonly ParameterizedThreadStart RunInThreadDelegate =
                 self => ((Worker)self!).RunInThread();
 
+            /// <summary>
+            /// Start the thread for this worker.  This method may only be called once.
+            /// </summary>
+            /// <param name="label"></param>
             public void StartThread(string? label)
             {
-                var thread = new Thread(RunInThreadDelegate);
-                thread.Priority = ThreadPriority.BelowNormal;
-                thread.IsBackground = true;
-                thread.Name = label;
+                var thread = new Thread(RunInThreadDelegate)
+                {
+                    Priority = ThreadPriority.BelowNormal,
+                    IsBackground = true,
+                    Name = label
+                };
                 thread.Start(this);
             }
 
-#if false
-            public bool TryPopTaskAtFront(Task task)
+            /// <summary>
+            /// Drain the local queue of items and put them into the global queue.
+            /// </summary>
+            private void DrainLocalQueue()
             {
-                if (localQueue.TryPeek(out var workItem) && workItem.TaskToRun == task)
-                {
-                    if (localQueue.TryPop(out workItem))
-                    {
-                        if (workItem.TaskToRun == task)
-                            return true;
+                var master = this.master;
 
-                        localQueue.TryPush(workItem, false);
-                    }
-                }
-
-                return false;
+                while (localQueue.TryPop(out var workItem))
+                    master._globalQueue.Enqueue(workItem);
             }
-#endif
 
             /// <summary>
             /// The thread procedure for the worker thread.
             /// </summary>
             private void RunInThread()
             {
+                var logger = this.master._logger;
+
                 try
                 {
                     this.master._currentWorker.Value = this;
 
-                    var logger = this.master._logger;
                     ITaskSchedulerLogger.SourceQueue whichQueue;
 
-                    while (true)
+                    while (this.master.ShouldWorkerContinueRunning(ref _hasQuit))
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-
                         WorkItem workItem;
 
                         if (localQueue.TryPop(out workItem))
@@ -191,7 +207,7 @@ namespace WorkStealingScheduler
                         }
                         else
                         {
-                            master._semaphore.Wait(this.cancellationToken);
+                            master._semaphore.Wait();
                             continue;
                         }
 
@@ -208,12 +224,22 @@ namespace WorkStealingScheduler
                             }
                         }
                     }
-                }
-                catch (OperationCanceledException)
-                {
+
+                    DrainLocalQueue();
+                    return;
                 }
                 catch (Exception e)
                 {
+                    logger.RaiseCriticalError(e);
+                }
+
+                try
+                {
+                    DrainLocalQueue();
+                }
+                catch (Exception e)
+                {
+                    logger.RaiseCriticalError(e);
                 }
             }
         }
