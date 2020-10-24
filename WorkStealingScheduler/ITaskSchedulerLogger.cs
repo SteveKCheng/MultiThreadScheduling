@@ -44,5 +44,23 @@ namespace WorkStealingScheduler
         /// </summary>
         /// <param name="sourceQueue">Where the task item came from. </param>
         void EndTask(SourceQueue sourceQueue);
+
+        /// <summary>
+        /// Called when an exception occurs in the worker's queue
+        /// processing or when a task propagates out an exception.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Normally such exceptions should not occur.  Tasks hold any
+        /// exceptions from executing the user's code and do not leak
+        /// that out to the executor.
+        /// </para>
+        /// <para>
+        /// This method should not raise exceptions itself.  If it does,
+        /// the process may shut down because the exception may be unhandled.
+        /// </para>
+        /// </remarks>
+        /// <param name="exception">The exception being thrown. </param>
+        void RaiseCriticalError(Exception exception);
     }
 }

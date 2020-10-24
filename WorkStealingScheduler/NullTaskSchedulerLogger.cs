@@ -17,5 +17,9 @@ namespace WorkStealingScheduler
         public void EndTask(ITaskSchedulerLogger.SourceQueue sourceQueue)
         {
         }
+
+        public void RaiseCriticalError(Exception exception)
+        {
+        }
     }
 }
