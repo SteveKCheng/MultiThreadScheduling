@@ -127,11 +127,16 @@ namespace WorkStealingScheduler
                         newWorkers[workersCount++] = oldWorkers[i];
                 }
 
+                // Generate seeds pseudo-randomly so workers will get different seeds
+                // even if we can only get low-resolution timestamps.
+                var random = new QuickRandomGenerator(QuickRandomGenerator.GetSeedFromTime());
+
                 for (int i = workersCount; i < desiredNumThreads; ++i)
                 {
                     var workerId = (uint)Interlocked.Increment(ref nextWorkerId);
                     newWorkers[i] = new Worker(this,
                                         initialDequeCapacity: 256,
+                                        seed: random.Next(),
                                         name: $"{nameof(WorkStealingTaskScheduler)} thread #{workerId}");
                 }
 
@@ -350,22 +355,6 @@ namespace WorkStealingScheduler
         /// 
         /// </summary>
         public ITaskSchedulerLogger Logger { get; }
-
-        /// <summary>
-        /// Get the floor of the logarithm to the base of two for an integer.
-        /// </summary>
-        /// <remarks>
-        /// This implementation is not one of the fast ones using "bit twiddling",
-        /// but we only call it once during construction of this class.
-        /// </remarks>
-        private static uint Log2(ulong v)
-        {
-            uint r = 0;
-            while ((v >>= 1) != 0)
-                r++;
-            return r;
-        }
-
 
         #region Disposal
 

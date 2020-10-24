@@ -105,7 +105,11 @@ namespace WorkStealingScheduler
             return false;
         }
 
-        private static readonly int Log2Frequency;
+        /// <summary>
+        /// Pseudo-random number generator to select another worker when
+        /// stealing work items.
+        /// </summary>
+        private QuickRandomGenerator _random;
 
         /// <summary>
         /// Try to steal an item off the end of the queue of a randomly-
@@ -119,7 +123,7 @@ namespace WorkStealingScheduler
 
             // Randomly pick a worker
             var numWorkers = workers.Length;
-            var startIndex = (int)(((uint)(Stopwatch.GetTimestamp() >> Log2Frequency)) % (uint)numWorkers);
+            var startIndex = (int)(_random.Next() % (uint)numWorkers);
 
             // Scan each worker starting from the one picked above until
             // we can steal an item
@@ -158,16 +162,31 @@ namespace WorkStealingScheduler
 
         public WorkItem[]? UnsafeGetItems() => _localQueue.UnsafeGetItems();
 
-        public Worker(WorkStealingTaskScheduler master, int initialDequeCapacity, string name)
+        /// <summary>
+        /// Prepare a worker for <see cref="WorkStealingTaskScheduler"/>
+        /// but do not start it yet.
+        /// </summary>
+        /// <param name="master">The owner of this worker. </param>
+        /// <param name="initialDequeCapacity">Initial capacity for the Chase-Lev queue.
+        /// Must be a power of two.
+        /// </param>
+        /// <param name="seed">Seed for the pseudo-random generator
+        /// to select other workers to steal from. </param>
+        /// <param name="name">The name assigned to this worker for debugging.
+        /// This name will become the (managed) name of the thread.
+        /// </param>
+        public Worker(WorkStealingTaskScheduler master, int initialDequeCapacity, uint seed, string name)
         {
-            this._master = master;
-            this._localQueue = new ChaseLevQueue<WorkItem>(initialDequeCapacity);
-            this._thread = new Thread(RunInThreadDelegate)
+            _master = master;
+            _localQueue = new ChaseLevQueue<WorkItem>(initialDequeCapacity);
+            _random = new QuickRandomGenerator(seed);
+
+            _thread = new Thread(RunInThreadDelegate)
             {
                 Priority = ThreadPriority.BelowNormal,
                 IsBackground = true,
                 Name = name
-            }; 
+            };
         }
 
         /// <summary>
