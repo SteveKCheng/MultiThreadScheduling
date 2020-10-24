@@ -1,9 +1,12 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Threading;
 
 namespace WorkStealingScheduler
 {
+    /// <summary>
+    /// One of the workers in <see cref="WorkStealingTaskScheduler"/>,
+    /// managing the thread and the local set of tasks.
+    /// </summary>
     internal class Worker
     {
         /// <summary>
@@ -92,6 +95,9 @@ namespace WorkStealingScheduler
         /// </remarks>
         private int _numLocalItems;
 
+        /// <summary>
+        /// Try to push an item to the local queue for this worker.
+        /// </summary>
         public bool TryLocalPush(in WorkItem taskItem)
         {
             if (_localQueue.TryPush(taskItem, false))
@@ -160,6 +166,14 @@ namespace WorkStealingScheduler
             return success;
         }
 
+        /// <summary>
+        /// Observe the work items in the local queue.
+        /// </summary>
+        /// <remarks>
+        /// The results should not be taken as the true state of the queue.
+        /// They are subject to tearing because no locks are taken.
+        /// This method is for diagnostics only.
+        /// </remarks>
         public WorkItem[]? UnsafeGetItems() => _localQueue.UnsafeGetItems();
 
         /// <summary>
