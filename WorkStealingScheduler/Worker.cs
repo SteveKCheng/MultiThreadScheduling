@@ -28,6 +28,11 @@ namespace WorkStealingScheduler
         private readonly WorkStealingTaskScheduler _master;
 
         /// <summary>
+        /// Name attached to this worker to aid debugging.
+        /// </summary>
+        public string Name => _thread.Name;
+
+        /// <summary>
         /// Whether the current thread is run by a worker for the given scheduler.
         /// </summary>
         public static bool IsCurrentWorkerOwnedBy(WorkStealingTaskScheduler master)
@@ -153,10 +158,16 @@ namespace WorkStealingScheduler
 
         public WorkItem[]? UnsafeGetItems() => _localQueue.UnsafeGetItems();
 
-        public Worker(WorkStealingTaskScheduler master, int initialDequeCapacity)
+        public Worker(WorkStealingTaskScheduler master, int initialDequeCapacity, string name)
         {
             this._master = master;
             this._localQueue = new ChaseLevQueue<WorkItem>(initialDequeCapacity);
+            this._thread = new Thread(RunInThreadDelegate)
+            {
+                Priority = ThreadPriority.BelowNormal,
+                IsBackground = true,
+                Name = name
+            }; 
         }
 
         /// <summary>
@@ -166,18 +177,16 @@ namespace WorkStealingScheduler
             self => ((Worker)self!).RunInThread();
 
         /// <summary>
+        /// The background thread that dispatches work items for this worker.
+        /// </summary>
+        private readonly Thread _thread;
+
+        /// <summary>
         /// Start the thread for this worker.  This method may only be called once.
         /// </summary>
-        /// <param name="label"></param>
-        public void StartThread(string? label)
+        public void StartThread()
         {
-            var thread = new Thread(RunInThreadDelegate)
-            {
-                Priority = ThreadPriority.BelowNormal,
-                IsBackground = true,
-                Name = label
-            };
-            thread.Start(this);
+            _thread.Start(this);
         }
 
         /// <summary>

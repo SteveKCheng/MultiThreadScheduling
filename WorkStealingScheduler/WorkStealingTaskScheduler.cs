@@ -83,6 +83,16 @@ namespace WorkStealingScheduler
         private int _totalNumThreads = 0;
 
         /// <summary>
+        /// Integer ID to be assigned to the next thread that gets started.
+        /// </summary>
+        /// <remarks>
+        /// The ID is used for naming the worker thread to aid debugging.
+        /// Thus this counter is shared across all instances of this class.
+        /// The ID is treated as unsigned and may overflow.
+        /// </remarks>
+        private static int nextWorkerId = 0;
+
+        /// <summary>
         /// Adjust the number of threads up or down.
         /// </summary>
         /// <param name="desiredNumThreads">The desired number of threads. Must 
@@ -118,7 +128,12 @@ namespace WorkStealingScheduler
                 }
 
                 for (int i = workersCount; i < desiredNumThreads; ++i)
-                    newWorkers[i] = new Worker(this, initialDequeCapacity: 256);
+                {
+                    var workerId = (uint)Interlocked.Increment(ref nextWorkerId);
+                    newWorkers[i] = new Worker(this,
+                                        initialDequeCapacity: 256,
+                                        name: $"{nameof(WorkStealingTaskScheduler)} thread #{workerId}");
+                }
 
                 // Publish the workers array even if starting the threads fail below
                 AllWorkers = newWorkers;
@@ -128,7 +143,7 @@ namespace WorkStealingScheduler
                 {
                     try
                     {
-                        newWorkers[i].StartThread($"{nameof(WorkStealingTaskScheduler)} thread #{i + 1}");
+                        newWorkers[i].StartThread();
                     }
                     catch (Exception e)
                     {
@@ -232,28 +247,14 @@ namespace WorkStealingScheduler
 
         #endregion
 
-        public WorkStealingTaskScheduler(int numThreads, ITaskSchedulerLogger? logger)
+        /// <summary>
+        /// Prepare to accept tasks.  No worker threads are started initially.
+        /// </summary>
+        /// <param name="logger">Logger to observe important events during this
+        /// scheduler's lifetime. </param>
+        public WorkStealingTaskScheduler(ITaskSchedulerLogger? logger)
         {
             Logger = logger ?? new NullTaskSchedulerLogger();
-
-            if (numThreads <= 0 || numThreads > Environment.ProcessorCount * 32)
-                throw new ArgumentOutOfRangeException(nameof(numThreads));
-
-            var allWorkers = new Worker[numThreads];
-
-            for (int i = 0; i < numThreads; ++i)
-            {
-                var worker = new Worker(this, initialDequeCapacity: 256);
-                allWorkers[i] = worker;
-            }
-
-            AllWorkers = allWorkers;
-
-            for (int i = 0; i < numThreads; ++i)
-            {
-                var worker = allWorkers[i];
-                worker.StartThread($"{nameof(WorkStealingTaskScheduler)} thread #{i + 1}");
-            }
         }
 
         #region Implementation of TaskScheduler
