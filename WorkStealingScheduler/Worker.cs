@@ -13,6 +13,17 @@ namespace WorkStealingScheduler
         private class Worker
         {
             /// <summary>
+            /// Thread-local backing field for the <see cref="OfCurrentThread"/> property.
+            /// </summary>
+            [ThreadStatic]
+            private static Worker? _current;
+
+            /// <summary>
+            /// The worker object that runs the current thread, if any.
+            /// </summary>
+            public static Worker? OfCurrentThread => _current;
+
+            /// <summary>
             /// Work items queued locally by this worker.
             /// </summary>
             private ChaseLevQueue<WorkItem> localQueue;
@@ -184,7 +195,7 @@ namespace WorkStealingScheduler
 
                 try
                 {
-                    this.master._currentWorker.Value = this;
+                    _current = this;
 
                     ITaskSchedulerLogger.SourceQueue whichQueue;
 
@@ -226,6 +237,7 @@ namespace WorkStealingScheduler
                     }
 
                     DrainLocalQueue();
+                    _current = null;
                     return;
                 }
                 catch (Exception e)
@@ -235,6 +247,7 @@ namespace WorkStealingScheduler
 
                 try
                 {
+                    _current = null;
                     DrainLocalQueue();
                 }
                 catch (Exception e)

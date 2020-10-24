@@ -26,11 +26,6 @@ namespace WorkStealingScheduler
         }
 
         /// <summary>
-        /// The worker object that is running in the current thread, if any.
-        /// </summary>
-        private ThreadLocal<Worker> _currentWorker = new ThreadLocal<Worker>();
-
-        /// <summary>
         /// The queue that work items are put in when they do not come from a
         /// worker thread.
         /// </summary>
@@ -300,7 +295,7 @@ namespace WorkStealingScheduler
 
             if ((taskOptions & TaskCreationOptions.PreferFairness) == 0)
             {
-                var worker = this._currentWorker.Value;
+                var worker = Worker.OfCurrentThread;
                 if (worker != null && worker.TryLocalPush(workItem))
                     return;
             }
@@ -324,7 +319,7 @@ namespace WorkStealingScheduler
         /// </param>
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
-            var worker = this._currentWorker.Value;
+            var worker = Worker.OfCurrentThread;
             if (worker != null && !taskWasPreviouslyQueued)
                 return TryExecuteTask(task);
 
@@ -357,7 +352,6 @@ namespace WorkStealingScheduler
 
         public void Dispose()
         {
-            this._currentWorker.Dispose();
             this._semaphore.Dispose();
         }
 
@@ -365,6 +359,5 @@ namespace WorkStealingScheduler
         {
             this._semaphore.Release();
         }
-
     }
 }
