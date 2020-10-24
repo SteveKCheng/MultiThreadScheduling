@@ -10,26 +10,15 @@ namespace WorkStealingScheduler
     public sealed partial class WorkStealingTaskScheduler : TaskScheduler, IDisposable
     {
         /// <summary>
-        /// Describes one unit of work to be done.
-        /// </summary>
-        private struct WorkItem
-        {
-            /// <summary>
-            /// The task to execute as the work.
-            /// </summary>
-            /// <remarks>
-            /// For now this is the only member.  We still have this struct
-            /// in case we want to augment the task with diagnostics information,
-            /// or take a delegate directly to execute.
-            /// </remarks>
-            public Task TaskToRun;
-        }
-
-        /// <summary>
         /// The queue that work items are put in when they do not come from a
         /// worker thread.
         /// </summary>
         private ConcurrentQueue<WorkItem> _globalQueue = new ConcurrentQueue<WorkItem>();
+
+        /// <summary>
+        /// Backing field for <see cref="AllWorkers"/> property.
+        /// </summary>
+        private Worker[] _allWorkers;
 
         /// <summary>
         /// Tracks all worker threads that have been instantiated.
@@ -38,7 +27,7 @@ namespace WorkStealingScheduler
         /// The "track all values" functionality of <see cref="ThreadLocal{Worker}"/>
         /// is not used because it is not efficient.
         /// </remarks>
-        private Worker[] _allWorkers;
+        internal Worker[] AllWorkers => _allWorkers;
 
         /// <summary>
         /// Signals to worker threads that there may be items to run.
@@ -147,7 +136,7 @@ namespace WorkStealingScheduler
                     }
                     catch (Exception e)
                     {
-                        _logger.RaiseCriticalError(e);
+                        Logger.RaiseCriticalError(e);
 
                         // If one thread fails to start do not try to start any more.
                         // The workers act the same way so starting more threads will likely
@@ -168,7 +157,7 @@ namespace WorkStealingScheduler
         /// </param>
         /// <returns>True if the worker should continue running; false
         /// if it should quit. </returns>
-        private bool ShouldWorkerContinueRunning(ref bool hasQuit)
+        internal bool ShouldWorkerContinueRunning(ref bool hasQuit)
         {
             if (_excessNumThreads > 0)
             {
@@ -200,6 +189,9 @@ namespace WorkStealingScheduler
         /// Re-create the <see cref="_allWorkers"/> array after trimming
         /// excess workers.
         /// </summary>
+        /// <remarks>
+        /// This method must be called while holding the lock on <see cref="LockObject"/>.
+        /// </remarks>
         private void ConsolidateWorkersAfterTrimmingExcess()
         {
             var oldWorkers = _allWorkers;
@@ -221,7 +213,7 @@ namespace WorkStealingScheduler
 
         public WorkStealingTaskScheduler(int numThreads, ITaskSchedulerLogger? logger)
         {
-            _logger = logger ?? new NullTaskSchedulerLogger();
+            Logger = logger ?? new NullTaskSchedulerLogger();
 
             if (numThreads <= 0 || numThreads > Environment.ProcessorCount * 32)
                 throw new ArgumentOutOfRangeException(nameof(numThreads));
@@ -253,7 +245,8 @@ namespace WorkStealingScheduler
         {
             var tasks = new List<Task>();
 
-            foreach (var worker in _allWorkers)
+            var allWorkers = _allWorkers;
+            foreach (var worker in allWorkers)
             {
                 var localItems = worker.UnsafeGetItems();
                 if (localItems == null)
@@ -331,7 +324,7 @@ namespace WorkStealingScheduler
         /// <summary>
         /// 
         /// </summary>
-        private readonly ITaskSchedulerLogger _logger;
+        public ITaskSchedulerLogger Logger { get; }
 
         /// <summary>
         /// Get the floor of the logarithm to the base of two for an integer.
@@ -348,16 +341,44 @@ namespace WorkStealingScheduler
             return r;
         }
 
-        private static readonly int Log2Frequency;
-
         public void Dispose()
         {
             this._semaphore.Dispose();
         }
 
-        private void RaiseSemaphoreForLocalItem()
+        #region Methods for workers to call
+
+        /// <summary>
+        /// Increment semaphore after a worker has enqueued a work item locally.
+        /// </summary>
+        internal void RaiseSemaphoreForLocalItem() => _semaphore.Release();
+
+        /// <summary>
+        /// Make the current worker thread synchronously wait for new work.
+        /// </summary>
+        internal void WaitOnSemaphore() => _semaphore.Wait();
+
+        /// <summary>
+        /// Push a work item onto the global queue.
+        /// </summary>
+        internal void EnqueueGlobalTaskItem(WorkItem workItem) => _globalQueue.Enqueue(workItem);
+
+        /// <summary>
+        /// Take a work item off the global queue if one exists.
+        /// </summary>
+        internal bool TryDequeueGlobalTaskItem(out WorkItem workItem) => _globalQueue.TryDequeue(out workItem);
+
+        /// <summary>
+        /// Have the current worker thread run a work item synchronously.
+        /// </summary>
+        internal void ExecuteTaskItemFromWorker(WorkItem workItem)
         {
-            this._semaphore.Release();
+            if (workItem.TaskToRun != null)
+            {
+                TryExecuteTask(workItem.TaskToRun);
+            }
         }
+
+        #endregion
     }
 }
