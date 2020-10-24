@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace WorkStealingScheduler
 {
-    public sealed partial class WorkStealingTaskScheduler : TaskScheduler, IDisposable
+    public sealed partial class WorkStealingTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// The queue that work items are put in when they do not come from a
@@ -16,18 +16,13 @@ namespace WorkStealingScheduler
         private ConcurrentQueue<WorkItem> _globalQueue = new ConcurrentQueue<WorkItem>();
 
         /// <summary>
-        /// Backing field for <see cref="AllWorkers"/> property.
-        /// </summary>
-        private Worker[] _allWorkers;
-
-        /// <summary>
         /// Tracks all worker threads that have been instantiated.
         /// </summary>
         /// <remarks>
         /// The "track all values" functionality of <see cref="ThreadLocal{Worker}"/>
         /// is not used because it is not efficient.
         /// </remarks>
-        internal Worker[] AllWorkers => _allWorkers;
+        internal Worker[]? AllWorkers { get; private set; }
 
         /// <summary>
         /// Signals to worker threads that there may be items to run.
@@ -81,7 +76,7 @@ namespace WorkStealingScheduler
         /// <remarks>
         /// The following invariant is kept when <see cref="LockObject"/>
         /// is not locked: <see cref="_totalNumThreads"/> is equal
-        /// to the length of <see cref="_allWorkers"/> minus the number
+        /// to the length of <see cref="AllWorkers"/> minus the number
         /// of workers whose property <see cref="Worker.HasQuit"/>
         /// is true.
         /// </remarks>
@@ -90,12 +85,10 @@ namespace WorkStealingScheduler
         /// <summary>
         /// Adjust the number of threads up or down.
         /// </summary>
-        /// <param name="desiredNumThreads">The desired number of threads. </param>
-        private void SetNumberOfThreads(int desiredNumThreads)
+        /// <param name="desiredNumThreads">The desired number of threads. Must 
+        /// not be negative. </param>
+        private void SetNumberOfThreadsInternal(int desiredNumThreads)
         {
-            if (desiredNumThreads <= 0 || desiredNumThreads > Environment.ProcessorCount * 32)
-                throw new ArgumentOutOfRangeException(nameof(desiredNumThreads));
-
             lock (LockObject)
             {
                 int excessNumThreads = _totalNumThreads - desiredNumThreads;
@@ -108,10 +101,13 @@ namespace WorkStealingScheduler
 
                 _excessNumThreads = 0;
                 if (excessNumThreads == 0)
+                {
+                    FinishDisposing();
                     return;
+                }
 
                 var newWorkers = new Worker[desiredNumThreads];
-                var oldWorkers = _allWorkers;
+                var oldWorkers = AllWorkers!;
                 int workersCount = 0;
 
                 for (int i = 0; i < oldWorkers.Length; ++i)
@@ -120,12 +116,12 @@ namespace WorkStealingScheduler
                     if (!worker.HasQuit)
                         newWorkers[workersCount++] = oldWorkers[i];
                 }
-                    
+
                 for (int i = workersCount; i < desiredNumThreads; ++i)
                     newWorkers[i] = new Worker(this, initialDequeCapacity: 256);
 
                 // Publish the workers array even if starting the threads fail below
-                _allWorkers = newWorkers;
+                AllWorkers = newWorkers;
                 _totalNumThreads = desiredNumThreads;
 
                 for (int i = workersCount; i < desiredNumThreads; ++i)
@@ -145,6 +141,22 @@ namespace WorkStealingScheduler
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Adjust the number of threads up or down.
+        /// </summary>
+        /// <param name="desiredNumThreads">The desired number of threads. Must 
+        /// not be negative. </param>
+        public void SetNumberOfThreads(int desiredNumThreads)
+        {
+            if (_disposalComplete != null)
+                throw new ObjectDisposedException("Cannot set the number of threads for a disposed scheduler. ");
+
+            if (desiredNumThreads <= 0 || desiredNumThreads > Environment.ProcessorCount * 32)
+                throw new ArgumentOutOfRangeException(nameof(desiredNumThreads));
+
+            SetNumberOfThreadsInternal(desiredNumThreads);
         }
 
         /// <summary>
@@ -175,7 +187,10 @@ namespace WorkStealingScheduler
                         hasQuit = true;
 
                         if (reachedZero)
+                        {
+                            FinishDisposing();
                             ConsolidateWorkersAfterTrimmingExcess();
+                        }
 
                         return false;
                     }
@@ -186,7 +201,7 @@ namespace WorkStealingScheduler
         }
 
         /// <summary>
-        /// Re-create the <see cref="_allWorkers"/> array after trimming
+        /// Re-create the <see cref="AllWorkers"/> array after trimming
         /// excess workers.
         /// </summary>
         /// <remarks>
@@ -194,7 +209,13 @@ namespace WorkStealingScheduler
         /// </remarks>
         private void ConsolidateWorkersAfterTrimmingExcess()
         {
-            var oldWorkers = _allWorkers;
+            if (_totalNumThreads == 0)
+            {
+                AllWorkers = null;
+                return;
+            }
+
+            var oldWorkers = AllWorkers!;
             int workersCount = 0;
 
             // Copy over the references to workers that are still active.
@@ -206,7 +227,7 @@ namespace WorkStealingScheduler
                     newWorkers[workersCount++] = worker;
             }
 
-            _allWorkers = newWorkers;
+            AllWorkers = newWorkers;
         }
 
         #endregion
@@ -223,10 +244,10 @@ namespace WorkStealingScheduler
             for (int i = 0; i < numThreads; ++i)
             {
                 var worker = new Worker(this, initialDequeCapacity: 256);
-                _allWorkers[i] = worker;
+                allWorkers[i] = worker;
             }
 
-            _allWorkers = allWorkers;
+            AllWorkers = allWorkers;
 
             for (int i = 0; i < numThreads; ++i)
             {
@@ -245,18 +266,21 @@ namespace WorkStealingScheduler
         {
             var tasks = new List<Task>();
 
-            var allWorkers = _allWorkers;
-            foreach (var worker in allWorkers)
+            var allWorkers = AllWorkers;
+            if (allWorkers != null)
             {
-                var localItems = worker.UnsafeGetItems();
-                if (localItems == null)
-                    continue;
-
-                foreach (var item in localItems)
+                foreach (var worker in allWorkers)
                 {
-                    var task = item.TaskToRun;
-                    if (task != null)
-                        tasks.Add(task);
+                    var localItems = worker.UnsafeGetItems();
+                    if (localItems == null)
+                        continue;
+
+                    foreach (var item in localItems)
+                    {
+                        var task = item.TaskToRun;
+                        if (task != null)
+                            tasks.Add(task);
+                    }
                 }
             }
 
@@ -341,10 +365,65 @@ namespace WorkStealingScheduler
             return r;
         }
 
-        public void Dispose()
+
+        #region Disposal
+
+        /// <summary>
+        /// Task source used to signal all workers have completely stopped.
+        /// </summary>
+        private volatile TaskCompletionSource<bool>? _disposalComplete;
+
+        /// <summary>
+        /// Requests and waits for all workers to stop, and 
+        /// cleans up resources allocated by this scheduler.
+        /// </summary>
+        /// <remarks>
+        /// If a worker is in the middle of executing some work item, it can only stop
+        /// after the work item has run.
+        /// </remarks>
+        public void Dispose() => DisposeAsync().Wait();
+
+        ValueTask IAsyncDisposable.DisposeAsync() => new ValueTask(DisposeAsync());
+
+        /// <summary>
+        /// Requests all workers to stop and cleans up resources allocated by this scheduler.
+        /// </summary>
+        /// <remarks>
+        /// If a worker is in the middle of executing some work item, it can only stop
+        /// after the work item has run.
+        /// </remarks>
+        public Task DisposeAsync()
         {
-            this._semaphore.Dispose();
+            if (Worker.IsCurrentWorkerOwnedBy(this))
+                throw new InvalidOperationException($"{nameof(WorkStealingScheduler)}.{nameof(Dispose)} may not be called from within one of its worker threads. ");
+
+            // Somebody is already disposing or has disposed
+            var disposalComplete = _disposalComplete;
+            if (disposalComplete != null)
+                return Task.CompletedTask;
+
+            // Raced to dispose
+            disposalComplete = new TaskCompletionSource<bool>();
+            if (Interlocked.Exchange(ref _disposalComplete, disposalComplete) != null)
+                return Task.CompletedTask;
+
+            SetNumberOfThreadsInternal(0);
+            return disposalComplete.Task;
         }
+
+        /// <summary>
+        /// Clean up resources in this instance after all concurrent workers are known to have stopped.
+        /// </summary>
+        private void FinishDisposing()
+        {
+            if (_disposalComplete != null)
+            {
+                _semaphore.Dispose();
+                _disposalComplete.TrySetResult(true);
+            }
+        }
+
+        #endregion
 
         #region Methods for workers to call
 

@@ -10,12 +10,12 @@ namespace WorkStealingScheduler
         /// Thread-local backing field for the <see cref="OfCurrentThread"/> property.
         /// </summary>
         [ThreadStatic]
-        private static Worker? _current;
+        private static Worker? _ofCurrentThread;
 
         /// <summary>
         /// The worker object that runs the current thread, if any.
         /// </summary>
-        public static Worker? OfCurrentThread => _current;
+        public static Worker? OfCurrentThread => _ofCurrentThread;
 
         /// <summary>
         /// Work items queued locally by this worker.
@@ -26,6 +26,15 @@ namespace WorkStealingScheduler
         /// The task scheduler that owns this worker.
         /// </summary>
         private readonly WorkStealingTaskScheduler _master;
+
+        /// <summary>
+        /// Whether the current thread is run by a worker for the given scheduler.
+        /// </summary>
+        public static bool IsCurrentWorkerOwnedBy(WorkStealingTaskScheduler master)
+        {
+            var worker = OfCurrentThread;
+            return worker != null && object.ReferenceEquals(worker._master, master);
+        }
 
         /// <summary>
         /// Flag to signal to the master that this worker has voluntarily stopped
@@ -101,7 +110,7 @@ namespace WorkStealingScheduler
         /// <returns>Whether an item has successfully been stolen. </returns>
         private bool TryStealWorkItem(out WorkItem workItem)
         {
-            var workers = this._master.AllWorkers;
+            var workers = this._master.AllWorkers!;
 
             // Randomly pick a worker
             var numWorkers = workers.Length;
@@ -187,15 +196,16 @@ namespace WorkStealingScheduler
         /// </summary>
         private void RunInThread()
         {
-            var logger = this._master.Logger;
+            var master = this._master;
+            var logger = master.Logger;
 
             try
             {
-                _current = this;
+                _ofCurrentThread = this;
 
                 ITaskSchedulerLogger.SourceQueue whichQueue;
 
-                while (this._master.ShouldWorkerContinueRunning(ref _hasQuit))
+                while (master.ShouldWorkerContinueRunning(ref _hasQuit))
                 {
                     WorkItem workItem;
 
@@ -204,7 +214,7 @@ namespace WorkStealingScheduler
                         Interlocked.Decrement(ref _numLocalItems);
                         whichQueue = ITaskSchedulerLogger.SourceQueue.Local;
                     }
-                    else if (_master.TryDequeueGlobalTaskItem(out workItem))
+                    else if (master.TryDequeueGlobalTaskItem(out workItem))
                     {
                         whichQueue = ITaskSchedulerLogger.SourceQueue.Global;
                     }
@@ -214,14 +224,14 @@ namespace WorkStealingScheduler
                     }
                     else
                     {
-                        _master.WaitOnSemaphore();
+                        master.WaitOnSemaphore();
                         continue;
                     }
 
                     try
                     {
                         logger.BeginTask(whichQueue);
-                        _master.ExecuteTaskItemFromWorker(workItem);
+                        master.ExecuteTaskItemFromWorker(workItem);
                     }
                     finally
                     {
@@ -230,7 +240,7 @@ namespace WorkStealingScheduler
                 }
 
                 DrainLocalQueue();
-                _current = null;
+                _ofCurrentThread = null;
                 return;
             }
             catch (Exception e)
@@ -240,7 +250,7 @@ namespace WorkStealingScheduler
 
             try
             {
-                _current = null;
+                _ofCurrentThread = null;
                 DrainLocalQueue();
             }
             catch (Exception e)
