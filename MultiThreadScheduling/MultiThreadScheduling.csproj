@@ -14,6 +14,8 @@
   <ItemGroup>
     <Compile Include="ChaseLevQueue.cs" />
     <Compile Include="ITaskSchedulerLogger.cs" />
+    <Compile Include="IWorkItem.cs" />
+    <Compile Include="MultiThreadScheduler.cs" />
     <Compile Include="MultiThreadTaskScheduler.cs" />
     <Compile Include="NullTaskSchedulerLogger.cs" />
     <Compile Include="QuickRandomGenerator.cs" />
