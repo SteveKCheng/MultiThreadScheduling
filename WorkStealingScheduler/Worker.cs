@@ -241,6 +241,9 @@ namespace WorkStealingScheduler
             var master = this._master;
             var logger = master.Logger;
 
+            // Should not fail
+            master.IncrementActiveThreadCount();
+
             try
             {
                 _ofCurrentThread = this;
@@ -280,10 +283,6 @@ namespace WorkStealingScheduler
                         logger.EndTask(whichQueue);
                     }
                 }
-
-                DrainLocalQueue();
-                _ofCurrentThread = null;
-                return;
             }
             catch (Exception e)
             {
@@ -294,6 +293,15 @@ namespace WorkStealingScheduler
             {
                 _ofCurrentThread = null;
                 DrainLocalQueue();
+            }
+            catch (Exception e)
+            {
+                logger.RaiseCriticalError(e);
+            }
+
+            try
+            {
+                master.DecrementActiveThreadCount();
             }
             catch (Exception e)
             {

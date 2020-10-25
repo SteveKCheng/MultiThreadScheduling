@@ -107,18 +107,31 @@ namespace WorkStealingScheduler
         /// <para>
         /// This variable is always at least zero.
         /// </para>
+        /// <para>
+        /// This variable may only be changed after locking <see cref="LockObject"/>.
+        /// Unfortunately, atomic increment/decrement is not sufficient because
+        /// threads would otherwise race to set this variable to less than zero.
+        /// </para>
         /// </remarks>
         private int _excessNumThreads = 0;
 
         /// <summary>
-        /// The number of workers that are supposed to be active currently.
+        /// The number of workers that are supposed to be running currently.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// The following invariant is kept when <see cref="LockObject"/>
         /// is not locked: <see cref="_totalNumThreads"/> is equal
         /// to the length of <see cref="AllWorkers"/> minus the number
         /// of workers whose property <see cref="Worker.HasQuit"/>
         /// is true.
+        /// </para>
+        /// <para>
+        /// This variable may only be changed after locking <see cref="LockObject"/>.
+        /// </para>
+        /// <para>
+        /// If a worker thread exits abnormally, this variable is not decremented.
+        /// </para>
         /// </remarks>
         private int _totalNumThreads = 0;
 
@@ -126,11 +139,16 @@ namespace WorkStealingScheduler
         /// Integer ID to be assigned to the next thread that gets started.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// The ID is used for naming the worker thread to aid debugging.
         /// Thus this counter is shared across all instances of this class.
         /// The ID is treated as unsigned and may overflow.
+        /// </para>
+        /// <para>
+        /// This variable is incremented atomically without needing any locks.
+        /// </para>
         /// </remarks>
-        private static int nextWorkerId = 0;
+        private static volatile int _nextWorkerId = 0;
 
         /// <summary>
         /// Adjust the number of threads up or down.
@@ -151,10 +169,7 @@ namespace WorkStealingScheduler
 
                 _excessNumThreads = 0;
                 if (excessNumThreads == 0)
-                {
-                    FinishDisposing();
                     return;
-                }
 
                 var newWorkers = new Worker[desiredNumThreads];
                 int workersCount = 0;
@@ -176,7 +191,7 @@ namespace WorkStealingScheduler
 
                 for (int i = workersCount; i < desiredNumThreads; ++i)
                 {
-                    var workerId = (uint)Interlocked.Increment(ref nextWorkerId);
+                    var workerId = (uint)Interlocked.Increment(ref _nextWorkerId);
                     newWorkers[i] = new Worker(this,
                                         initialDequeCapacity: 256,
                                         seed: random.Next(),
@@ -250,10 +265,7 @@ namespace WorkStealingScheduler
                         hasQuit = true;
 
                         if (reachedZero)
-                        {
-                            FinishDisposing();
                             ConsolidateWorkersAfterTrimmingExcess();
-                        }
 
                         return false;
                     }
@@ -402,6 +414,31 @@ namespace WorkStealingScheduler
         #region Disposal
 
         /// <summary>
+        /// The number of workers that are actively accepting work.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The difference between this variable and <see cref="_totalNumThreads"/>
+        /// is that worker threads that are exiting, normally or abnormally,
+        /// will decrement this variable, atomically.  This variable is used
+        /// for knowing when disposal of this scheduler is finished, even when
+        /// there are some worker threads behaving abnormally.  
+        /// </para>
+        /// <para>
+        /// To increase reliability, this variable is designated to used in such
+        /// a restricted manner that locks are not required to access it.
+        /// More precisely, it is consulted only to implement disposal, i.e. terminating
+        /// all worker threads permanently, and not for arbitrary adjustments of the
+        /// number of threads.
+        /// </para>
+        /// <para>
+        /// This variable takes the special value of -1 to distinguish the 
+        /// "final clean-up" state.
+        /// </para>
+        /// </remarks>
+        private volatile int _activeNumThreads = 0;
+
+        /// <summary>
         /// Task source used to signal all workers have completely stopped.
         /// </summary>
         private volatile TaskCompletionSource<bool>? _disposalComplete;
@@ -411,8 +448,16 @@ namespace WorkStealingScheduler
         /// cleans up resources allocated by this scheduler.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// If a worker is in the middle of executing some work item, it can only stop
         /// after the work item has run.
+        /// </para>
+        /// <para>
+        /// If some worker is running an item that is taking forever, or is otherwise
+        /// stuck, this call may wait forever and never return.  We recommend,
+        /// for robustness, that <see cref="DisposeAsync"/> be used instead, 
+        /// with a timeout.
+        /// </para>
         /// </remarks>
         public void Dispose() => DisposeAsync().Wait();
 
@@ -425,6 +470,10 @@ namespace WorkStealingScheduler
         /// If a worker is in the middle of executing some work item, it can only stop
         /// after the work item has run.
         /// </remarks>
+        /// <returns>Task that completes only when disposal is complete.
+        /// If this method gets called (concurrently) multiple times, their returned
+        /// Task objects all complete only when the disposal completes.
+        /// </returns>
         public Task DisposeAsync()
         {
             if (Worker.IsCurrentWorkerOwnedBy(this))
@@ -433,27 +482,22 @@ namespace WorkStealingScheduler
             // Somebody is already disposing or has disposed
             var disposalComplete = _disposalComplete;
             if (disposalComplete != null)
-                return Task.CompletedTask;
+                return disposalComplete.Task;
 
             // Raced to dispose
-            disposalComplete = new TaskCompletionSource<bool>();
-            if (Interlocked.Exchange(ref _disposalComplete, disposalComplete) != null)
-                return Task.CompletedTask;
+            var newDisposalComplete = new TaskCompletionSource<bool>();
+            disposalComplete = Interlocked.Exchange(ref _disposalComplete, newDisposalComplete);
+            if (disposalComplete != null)
+                return disposalComplete.Task;
 
+            // Request all worker threads to stop
             SetNumberOfThreadsInternal(0);
-            return disposalComplete.Task;
-        }
 
-        /// <summary>
-        /// Clean up resources in this instance after all concurrent workers are known to have stopped.
-        /// </summary>
-        private void FinishDisposing()
-        {
-            if (_disposalComplete != null)
-            {
-                _semaphore.Dispose();
-                _disposalComplete.TrySetResult(true);
-            }
+            // Allow _activeNumThreads to be decreased all the way to -1.
+            // When all worker threads have already stopped, this will clean up synchronously.
+            DecrementActiveThreadCount();
+
+            return newDisposalComplete.Task;
         }
 
         #endregion
@@ -488,6 +532,36 @@ namespace WorkStealingScheduler
             if (workItem.TaskToRun != null)
             {
                 TryExecuteTask(workItem.TaskToRun);
+            }
+        }
+
+        /// <summary>
+        /// Increment the count of active worker threads.
+        /// </summary>
+        internal void IncrementActiveThreadCount()
+        {
+            Interlocked.Increment(ref _activeNumThreads);
+        }
+
+        /// <summary>
+        /// Decrement the count of active worker threads, and finish any pending disposal when
+        /// there are no more threads.
+        /// </summary>
+        internal void DecrementActiveThreadCount()
+        {
+            if (Interlocked.Decrement(ref _activeNumThreads) == -1)
+            {
+                try
+                {
+                    _semaphore.Dispose();
+                }
+                catch (Exception e)
+                {
+                    Logger.RaiseCriticalError(e);
+                }
+
+                // When _activeNumThreads == -1, _disposalComplete should be non-null
+                _disposalComplete!.SetResult(true);
             }
         }
 
