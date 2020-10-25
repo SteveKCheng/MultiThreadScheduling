@@ -157,14 +157,17 @@ namespace WorkStealingScheduler
                 }
 
                 var newWorkers = new Worker[desiredNumThreads];
-                var oldWorkers = AllWorkers!;
                 int workersCount = 0;
 
-                for (int i = 0; i < oldWorkers.Length; ++i)
+                var oldWorkers = AllWorkers;
+                if (oldWorkers != null)
                 {
-                    var worker = oldWorkers[i];
-                    if (!worker.HasQuit)
-                        newWorkers[workersCount++] = oldWorkers[i];
+                    for (int i = 0; i < oldWorkers.Length; ++i)
+                    {
+                        var worker = oldWorkers[i];
+                        if (!worker.HasQuit)
+                            newWorkers[workersCount++] = oldWorkers[i];
+                    }
                 }
 
                 // Generate seeds pseudo-randomly so workers will get different seeds
