@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
     /// <summary>
     /// Quick and dirty, low-quality pseudo-random generator.

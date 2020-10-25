@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
     /// <summary>
     /// Implementation of the Chase-Lev lock-free queue for work-stealing task scheduling.

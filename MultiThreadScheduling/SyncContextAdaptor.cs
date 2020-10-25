@@ -2,19 +2,19 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
-    public sealed partial class WorkStealingTaskScheduler
+    public sealed partial class MultiThreadTaskScheduler
     {
         /// <summary>
-        /// Adapt <see cref="WorkStealingTaskScheduler"/>
+        /// Adapt <see cref="MultiThreadTaskScheduler"/>
         /// into a <see cref="SynchronizationContext"/>.
         /// </summary>
         private class SyncContextAdaptor : SynchronizationContext
         {
-            private readonly WorkStealingTaskScheduler _master;
+            private readonly MultiThreadTaskScheduler _master;
 
-            public SyncContextAdaptor(WorkStealingTaskScheduler master)
+            public SyncContextAdaptor(MultiThreadTaskScheduler master)
             {
                 _master = master;
             }

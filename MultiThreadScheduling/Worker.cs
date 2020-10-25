@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Threading;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
     /// <summary>
-    /// One of the workers in <see cref="WorkStealingTaskScheduler"/>,
+    /// One of the workers in <see cref="MultiThreadTaskScheduler"/>,
     /// managing the thread and the local set of tasks.
     /// </summary>
     internal class Worker
@@ -28,7 +28,7 @@ namespace WorkStealingScheduler
         /// <summary>
         /// The task scheduler that owns this worker.
         /// </summary>
-        private readonly WorkStealingTaskScheduler _master;
+        private readonly MultiThreadTaskScheduler _master;
 
         /// <summary>
         /// Name attached to this worker to aid debugging.
@@ -38,7 +38,7 @@ namespace WorkStealingScheduler
         /// <summary>
         /// Whether the current thread is run by a worker for the given scheduler.
         /// </summary>
-        public static bool IsCurrentWorkerOwnedBy(WorkStealingTaskScheduler master)
+        public static bool IsCurrentWorkerOwnedBy(MultiThreadTaskScheduler master)
         {
             var worker = OfCurrentThread;
             return worker != null && object.ReferenceEquals(worker._master, master);
@@ -177,7 +177,7 @@ namespace WorkStealingScheduler
         public WorkItem[]? UnsafeGetItems() => _localQueue.UnsafeGetItems();
 
         /// <summary>
-        /// Prepare a worker for <see cref="WorkStealingTaskScheduler"/>
+        /// Prepare a worker for <see cref="MultiThreadTaskScheduler"/>
         /// but do not start it yet.
         /// </summary>
         /// <param name="master">The owner of this worker. </param>
@@ -189,7 +189,7 @@ namespace WorkStealingScheduler
         /// <param name="name">The name assigned to this worker for debugging.
         /// This name will become the (managed) name of the thread.
         /// </param>
-        public Worker(WorkStealingTaskScheduler master, int initialDequeCapacity, uint seed, string name)
+        public Worker(MultiThreadTaskScheduler master, int initialDequeCapacity, uint seed, string name)
         {
             _master = master;
             _localQueue = new ChaseLevQueue<WorkItem>(initialDequeCapacity);

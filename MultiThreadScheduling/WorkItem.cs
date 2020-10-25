@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
     /// <summary>
     /// Describes one unit of work to be done.

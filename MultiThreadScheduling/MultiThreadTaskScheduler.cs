@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
     /// <summary>
     /// A work-stealing, multi-thread scheduler for CPU-bound workloads.
@@ -47,7 +47,7 @@ namespace WorkStealingScheduler
     /// not recommended.
     /// </para>
     /// </remarks>
-    public sealed partial class WorkStealingTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable
+    public sealed partial class MultiThreadTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// The queue that work items are put in when they do not come from a
@@ -157,6 +157,9 @@ namespace WorkStealingScheduler
         /// not be negative. </param>
         private void SetNumberOfThreadsInternal(int desiredNumThreads)
         {
+            Worker[] newWorkers;
+            int workersCount;
+
             lock (LockObject)
             {
                 int excessNumThreads = _totalNumThreads - desiredNumThreads;
@@ -171,8 +174,8 @@ namespace WorkStealingScheduler
                 if (excessNumThreads == 0)
                     return;
 
-                var newWorkers = new Worker[desiredNumThreads];
-                int workersCount = 0;
+                newWorkers = new Worker[desiredNumThreads];
+                workersCount = 0;
 
                 var oldWorkers = AllWorkers;
                 if (oldWorkers != null)
@@ -195,28 +198,29 @@ namespace WorkStealingScheduler
                     newWorkers[i] = new Worker(this,
                                         initialDequeCapacity: 256,
                                         seed: random.Next(),
-                                        name: $"{nameof(WorkStealingTaskScheduler)} thread #{workerId}");
+                                        name: $"{nameof(MultiThreadTaskScheduler)} thread #{workerId}");
                 }
 
                 // Publish the workers array even if starting the threads fail below
                 AllWorkers = newWorkers;
                 _totalNumThreads = desiredNumThreads;
+            }
 
-                for (int i = workersCount; i < desiredNumThreads; ++i)
+            // Can start threads outside the lock once all instance data has been published
+            for (int i = workersCount; i < desiredNumThreads; ++i)
+            {
+                try
                 {
-                    try
-                    {
-                        newWorkers[i].StartThread();
-                    }
-                    catch (Exception e)
-                    {
-                        Logger.RaiseCriticalError(e);
+                    newWorkers[i].StartThread();
+                }
+                catch (Exception e)
+                {
+                    Logger.RaiseCriticalError(e);
 
-                        // If one thread fails to start do not try to start any more.
-                        // The workers act the same way so starting more threads will likely
-                        // just fail again.
-                        throw;
-                    }
+                    // If one thread fails to start do not try to start any more.
+                    // The workers act the same way so starting more threads will likely
+                    // just fail again.
+                    throw;
                 }
             }
         }
@@ -312,7 +316,7 @@ namespace WorkStealingScheduler
         /// </summary>
         /// <param name="logger">Logger to observe important events during this
         /// scheduler's lifetime. </param>
-        public WorkStealingTaskScheduler(ITaskSchedulerLogger? logger)
+        public MultiThreadTaskScheduler(ITaskSchedulerLogger? logger)
         {
             Logger = logger ?? new NullTaskSchedulerLogger();
         }
@@ -366,7 +370,7 @@ namespace WorkStealingScheduler
                 var thread = new Thread(task => this.TryExecuteTask((Task)task!));
                 thread.Priority = ThreadPriority.BelowNormal;
                 thread.IsBackground = true;
-                thread.Name = nameof(WorkStealingTaskScheduler) + " thread for long-running task";
+                thread.Name = nameof(MultiThreadTaskScheduler) + " thread for long-running task";
                 thread.Start(task);
                 return;
             }
@@ -477,7 +481,7 @@ namespace WorkStealingScheduler
         public Task DisposeAsync()
         {
             if (Worker.IsCurrentWorkerOwnedBy(this))
-                throw new InvalidOperationException($"{nameof(WorkStealingScheduler)}.{nameof(Dispose)} may not be called from within one of its worker threads. ");
+                throw new InvalidOperationException($"{nameof(MultiThreadScheduling)}.{nameof(Dispose)} may not be called from within one of its worker threads. ");
 
             // Somebody is already disposing or has disposed
             var disposalComplete = _disposalComplete;

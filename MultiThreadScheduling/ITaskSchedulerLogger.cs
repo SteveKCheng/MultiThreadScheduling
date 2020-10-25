@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
     /// <summary>
-    /// Receives notification when <see cref="WorkStealingTaskScheduler"/>
+    /// Receives notification when <see cref="MultiThreadTaskScheduler"/>
     /// does something significant, for diagnostic logging.
     /// </summary>
     public interface ITaskSchedulerLogger

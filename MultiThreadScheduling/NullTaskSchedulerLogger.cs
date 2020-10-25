@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace WorkStealingScheduler
+namespace MultiThreadScheduling
 {
     /// <summary>
-    /// Dummy implementation of logging for <see cref="WorkStealingTaskScheduler"/>
+    /// Dummy implementation of logging for <see cref="MultiThreadTaskScheduler"/>
     /// that does nothing.
     /// </summary>
     public class NullTaskSchedulerLogger : ITaskSchedulerLogger
