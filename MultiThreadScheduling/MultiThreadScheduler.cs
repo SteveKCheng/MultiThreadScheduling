@@ -25,8 +25,15 @@ namespace MultiThreadScheduling
     /// on application-specific messages.
     /// </para>
     /// </remarks>
-    public class MultiThreadScheduler<TWorkItem> : IDisposable, IAsyncDisposable 
-        where TWorkItem: IWorkItem 
+    /// <typeparam name="TWorkItem">
+    /// Type of the abstract message that may be queued into <see cref="MultiThreadScheduler{TWorkItem}"/>
+    /// and gets processed by one of its worker threads.
+    /// </typeparam>
+    /// <typeparam name="TExecutor">
+    /// Type of the object or state that can process an instance of <typeparamref name="TWorkItem"/>.
+    /// </typeparam>
+    public class MultiThreadScheduler<TWorkItem, TExecutor> : IDisposable, IAsyncDisposable 
+        where TExecutor: IWorkExecutor<TWorkItem>
     {
         /// <summary>
         /// The queue that work items are put in when they do not come from a
@@ -41,7 +48,7 @@ namespace MultiThreadScheduling
         /// The "track all values" functionality of <see cref="ThreadLocal{Worker}"/>
         /// is not used because it is not efficient.
         /// </remarks>
-        internal Worker<TWorkItem>[]? AllWorkers { get; private set; }
+        internal Worker<TWorkItem, TExecutor>[]? AllWorkers { get; private set; }
 
         /// <summary>
         /// Signals to worker threads that there may be items to run.
@@ -136,7 +143,7 @@ namespace MultiThreadScheduling
         /// not be negative. </param>
         private void SetNumberOfThreadsInternal(int desiredNumThreads)
         {
-            Worker<TWorkItem>[] newWorkers;
+            Worker<TWorkItem, TExecutor>[] newWorkers;
             int workersCount;
 
             lock (LockObject)
@@ -153,7 +160,7 @@ namespace MultiThreadScheduling
                 if (excessNumThreads == 0)
                     return;
 
-                newWorkers = new Worker<TWorkItem>[desiredNumThreads];
+                newWorkers = new Worker<TWorkItem, TExecutor>[desiredNumThreads];
                 workersCount = 0;
 
                 var oldWorkers = AllWorkers;
@@ -174,7 +181,7 @@ namespace MultiThreadScheduling
                 for (int i = workersCount; i < desiredNumThreads; ++i)
                 {
                     var workerId = (uint)Interlocked.Increment(ref _nextWorkerId);
-                    newWorkers[i] = new Worker<TWorkItem>(this,
+                    newWorkers[i] = new Worker<TWorkItem, TExecutor>(this,
                                         initialDequeCapacity: 256,
                                         seed: random.Next(),
                                         name: $"{nameof(MultiThreadTaskScheduler)} thread #{workerId}");
@@ -277,7 +284,7 @@ namespace MultiThreadScheduling
             int workersCount = 0;
 
             // Copy over the references to workers that are still active.
-            var newWorkers = new Worker<TWorkItem>[_totalNumThreads];
+            var newWorkers = new Worker<TWorkItem, TExecutor>[_totalNumThreads];
             for (int i = 0; i < oldWorkers.Length; ++i)
             {
                 var worker = oldWorkers[i];
@@ -294,20 +301,17 @@ namespace MultiThreadScheduling
         /// Prepare to accept tasks.  No worker threads are started initially.
         /// </summary>
         /// <param name="executor">
-        /// Object or state for processing work items, passed to <see cref="IWorkItem.Execute(object?)"/>.
+        /// Object or state for processing work items.
         /// </param>
         /// <param name="logger">Logger to observe important events during this
         /// scheduler's lifetime. </param>
-        public MultiThreadScheduler(object? executor, ITaskSchedulerLogger? logger)
+        public MultiThreadScheduler(TExecutor executor, ITaskSchedulerLogger? logger)
         {
             Logger = logger ?? new NullTaskSchedulerLogger();
             Executor = executor;
         }
 
-        /// <summary>
-        /// Object or state for processing work items, passed to <see cref="IWorkItem.Execute(object?)"/>.
-        /// </summary>
-        internal object? Executor { get; }
+        internal TExecutor Executor;
 
         /// <summary>
         /// 
@@ -379,7 +383,7 @@ namespace MultiThreadScheduling
         /// </returns>
         public Task DisposeAsync()
         {
-            if (Worker<TWorkItem>.IsCurrentWorkerOwnedBy(this))
+            if (Worker<TWorkItem, TExecutor>.IsCurrentWorkerOwnedBy(this))
                 throw new InvalidOperationException($"{nameof(MultiThreadScheduling)}.{nameof(Dispose)} may not be called from within one of its worker threads. ");
 
             // Somebody is already disposing or has disposed
@@ -490,7 +494,7 @@ namespace MultiThreadScheduling
         {
             if (preferLocal)
             {
-                var worker = Worker<TWorkItem>.OfCurrentThread;
+                var worker = Worker<TWorkItem, TExecutor>.OfCurrentThread;
                 if (worker != null && worker.TryLocalPush(workItem))
                     return;
             }

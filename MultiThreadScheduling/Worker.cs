@@ -7,18 +7,18 @@ namespace MultiThreadScheduling
     /// One of the workers in <see cref="MultiThreadScheduler"/>,
     /// managing the thread and the local set of tasks.
     /// </summary>
-    internal class Worker<TWorkItem> where TWorkItem: IWorkItem
+    internal class Worker<TWorkItem, TExecutor> where TExecutor: IWorkExecutor<TWorkItem>
     {
         /// <summary>
         /// Thread-local backing field for the <see cref="OfCurrentThread"/> property.
         /// </summary>
         [ThreadStatic]
-        private static Worker<TWorkItem>? _ofCurrentThread;
+        private static Worker<TWorkItem, TExecutor>? _ofCurrentThread;
 
         /// <summary>
         /// The worker object that runs the current thread, if any.
         /// </summary>
-        public static Worker<TWorkItem>? OfCurrentThread => _ofCurrentThread;
+        public static Worker<TWorkItem, TExecutor>? OfCurrentThread => _ofCurrentThread;
 
         /// <summary>
         /// Work items queued locally by this worker.
@@ -28,7 +28,7 @@ namespace MultiThreadScheduling
         /// <summary>
         /// The task scheduler that owns this worker.
         /// </summary>
-        private readonly MultiThreadScheduler<TWorkItem> _master;
+        private readonly MultiThreadScheduler<TWorkItem, TExecutor> _master;
 
         /// <summary>
         /// Name attached to this worker to aid debugging.
@@ -38,7 +38,7 @@ namespace MultiThreadScheduling
         /// <summary>
         /// Whether the current thread is run by a worker for the given scheduler.
         /// </summary>
-        public static bool IsCurrentWorkerOwnedBy(MultiThreadScheduler<TWorkItem> master)
+        public static bool IsCurrentWorkerOwnedBy(MultiThreadScheduler<TWorkItem, TExecutor> master)
         {
             var worker = OfCurrentThread;
             return worker != null && object.ReferenceEquals(worker._master, master);
@@ -189,7 +189,7 @@ namespace MultiThreadScheduling
         /// <param name="name">The name assigned to this worker for debugging.
         /// This name will become the (managed) name of the thread.
         /// </param>
-        public Worker(MultiThreadScheduler<TWorkItem> master, int initialDequeCapacity, uint seed, string name)
+        public Worker(MultiThreadScheduler<TWorkItem, TExecutor> master, int initialDequeCapacity, uint seed, string name)
         {
             _master = master;
             _localQueue = new ChaseLevQueue<TWorkItem>(initialDequeCapacity);
@@ -207,7 +207,7 @@ namespace MultiThreadScheduling
         /// Cached delegate for the worker thread.
         /// </summary>
         private static readonly ParameterizedThreadStart RunInThreadDelegate =
-            self => ((Worker<TWorkItem>)self!).RunInThread();
+            self => ((Worker<TWorkItem, TExecutor>)self!).RunInThread();
 
         /// <summary>
         /// The background thread that dispatches work items for this worker.
@@ -240,7 +240,6 @@ namespace MultiThreadScheduling
         {
             var master = this._master;
             var logger = master.Logger;
-            var executor = master.Executor;
 
             // Should not fail
             master.IncrementActiveThreadCount();
@@ -277,7 +276,7 @@ namespace MultiThreadScheduling
                     try
                     {
                         logger.BeginTask(whichQueue);
-                        workItem.Execute(executor);
+                        master.Executor.Execute(workItem);
                     }
                     finally
                     {

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -14,7 +14,7 @@
   <ItemGroup>
     <Compile Include="ChaseLevQueue.cs" />
     <Compile Include="ITaskSchedulerLogger.cs" />
-    <Compile Include="IWorkItem.cs" />
+    <Compile Include="IWorkExecutor.cs" />
     <Compile Include="MultiThreadScheduler.cs" />
     <Compile Include="MultiThreadTaskScheduler.cs" />
     <Compile Include="NullTaskSchedulerLogger.cs" />

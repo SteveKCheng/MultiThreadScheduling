@@ -48,11 +48,20 @@ namespace MultiThreadScheduling
     /// </remarks>
     public sealed partial class MultiThreadTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable
     {
-        private readonly MultiThreadScheduler<WorkItem> _scheduler;
+        private readonly MultiThreadScheduler<WorkItem, Executor> _scheduler;
+
+        private readonly struct Executor : IWorkExecutor<WorkItem>
+        {
+            private readonly MultiThreadTaskScheduler _taskScheduler;
+
+            public Executor(MultiThreadTaskScheduler taskScheduler) => _taskScheduler = taskScheduler;
+
+            public void Execute(WorkItem workItem) => _taskScheduler.ExecuteTaskFromWorker(workItem);
+        }
 
         public MultiThreadTaskScheduler(ITaskSchedulerLogger? logger)
         {
-            _scheduler = new MultiThreadScheduler<WorkItem>(this, logger);
+            _scheduler = new MultiThreadScheduler<WorkItem, Executor>(new Executor(this), logger);
         }
 
         internal void ExecuteTaskFromWorker(WorkItem workItem)
@@ -111,7 +120,7 @@ namespace MultiThreadScheduling
         /// </param>
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
-            var worker = Worker<WorkItem>.OfCurrentThread;
+            var worker = Worker<WorkItem, Executor>.OfCurrentThread;
             if (worker != null && !taskWasPreviouslyQueued)
                 return TryExecuteTask(task);
 
