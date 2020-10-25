@@ -383,7 +383,7 @@ namespace MultiThreadScheduling
         /// </returns>
         public Task DisposeAsync()
         {
-            if (Worker<TWorkItem, TExecutor>.IsCurrentWorkerOwnedBy(this))
+            if (Worker.IsRunningInWorkerFor(this))
                 throw new InvalidOperationException($"{nameof(MultiThreadScheduling)}.{nameof(Dispose)} may not be called from within one of its worker threads. ");
 
             // Somebody is already disposing or has disposed
@@ -494,7 +494,7 @@ namespace MultiThreadScheduling
         {
             if (preferLocal)
             {
-                var worker = Worker<TWorkItem, TExecutor>.OfCurrentThread;
+                var worker = Worker<TWorkItem, TExecutor>.TryGetCurrentWorkerFor(this);
                 if (worker != null && worker.TryLocalPush(workItem))
                     return;
             }

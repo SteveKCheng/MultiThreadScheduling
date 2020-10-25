@@ -1,25 +1,81 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace MultiThreadScheduling
 {
     /// <summary>
+    /// Holds member data in <see cref="Worker{TWorkItem, TExecutor}"/> that is independent of
+    /// the type parameters.
+    /// </summary>
+    /// <remarks>
+    /// For the thread-local field <see cref="_ofCurrentThread"/> in particular, we only want
+    /// one instantiation regardless of the parameterized type.
+    /// </remarks>
+    internal class Worker
+    {
+        /// <summary>
+        /// Points to the Worker object that manages the current thread originated from, when applicable.
+        /// </summary>
+        [ThreadStatic]
+        private static Worker? _ofCurrentThread;
+
+        /// <summary>
+        /// Type-erased version of <see cref="Worker{TWorkItem, TExecutor}._master"/>
+        /// used for object comparison only.
+        /// </summary>
+        private readonly object _masterObject;
+
+        protected Worker(object masterObject)
+        {
+            _masterObject = masterObject;
+        }
+
+        /// <summary>
+        /// Register this instance as the worker for the current thread.
+        /// </summary>
+        protected void SetThisWorkerForCurrentThread() => _ofCurrentThread = this;
+
+        /// <summary>
+        /// Unregister this instance as the worker for the current thread.
+        /// </summary>
+        protected void UnsetThisWorkerForCurrentThread() => _ofCurrentThread = null;
+        
+        /// <summary>
+        /// If the current thread is a worker thread from the given scheduler, return
+        /// the worker object; otherwise null.
+        public static Worker<TWorkItem, TExecutor>? TryGetCurrentWorkerFor<TWorkItem, TExecutor>(MultiThreadScheduler<TWorkItem, TExecutor> master)
+            where TExecutor : IWorkExecutor<TWorkItem>
+        {
+            var worker = _ofCurrentThread;
+            return IsWorkerOwnedBy(worker, master) ? (Worker<TWorkItem, TExecutor>)worker! : null;
+        }
+
+        /// <summary>
+        /// Whether the current thread is run by a worker for the given scheduler.
+        /// </summary>
+        public static bool IsRunningInWorkerFor<TWorkItem, TExecutor>(MultiThreadScheduler<TWorkItem, TExecutor> master)
+            where TExecutor : IWorkExecutor<TWorkItem>
+            => IsWorkerOwnedBy(_ofCurrentThread, master);
+
+        /// <summary>
+        /// Test if a given worker is owned by a given scheduler.
+        /// </summary>
+        /// <remarks>
+        /// Common code for <see cref="TryGetCurrentWorkerFor{TWorkItem, TExecutor}(MultiThreadScheduler{TWorkItem, TExecutor})"/>
+        /// and <see cref="IsRunningInWorkerFor{TWorkItem, TExecutor}(MultiThreadScheduler{TWorkItem, TExecutor})"/>.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsWorkerOwnedBy(Worker? worker, object master)
+            => worker != null && object.ReferenceEquals(worker._masterObject, master);
+    }
+
+    /// <summary>
     /// One of the workers in <see cref="MultiThreadScheduler"/>,
     /// managing the thread and the local set of tasks.
     /// </summary>
-    internal class Worker<TWorkItem, TExecutor> where TExecutor: IWorkExecutor<TWorkItem>
+    internal sealed class Worker<TWorkItem, TExecutor> : Worker where TExecutor: IWorkExecutor<TWorkItem>
     {
-        /// <summary>
-        /// Thread-local backing field for the <see cref="OfCurrentThread"/> property.
-        /// </summary>
-        [ThreadStatic]
-        private static Worker<TWorkItem, TExecutor>? _ofCurrentThread;
-
-        /// <summary>
-        /// The worker object that runs the current thread, if any.
-        /// </summary>
-        public static Worker<TWorkItem, TExecutor>? OfCurrentThread => _ofCurrentThread;
-
         /// <summary>
         /// Work items queued locally by this worker.
         /// </summary>
@@ -34,15 +90,6 @@ namespace MultiThreadScheduling
         /// Name attached to this worker to aid debugging.
         /// </summary>
         public string Name => _thread.Name;
-
-        /// <summary>
-        /// Whether the current thread is run by a worker for the given scheduler.
-        /// </summary>
-        public static bool IsCurrentWorkerOwnedBy(MultiThreadScheduler<TWorkItem, TExecutor> master)
-        {
-            var worker = OfCurrentThread;
-            return worker != null && object.ReferenceEquals(worker._master, master);
-        }
 
         /// <summary>
         /// Flag to signal to the master that this worker has voluntarily stopped
@@ -190,6 +237,7 @@ namespace MultiThreadScheduling
         /// This name will become the (managed) name of the thread.
         /// </param>
         public Worker(MultiThreadScheduler<TWorkItem, TExecutor> master, int initialDequeCapacity, uint seed, string name)
+            : base(master)
         {
             _master = master;
             _localQueue = new ChaseLevQueue<TWorkItem>(initialDequeCapacity);
@@ -246,7 +294,7 @@ namespace MultiThreadScheduling
 
             try
             {
-                _ofCurrentThread = this;
+                SetThisWorkerForCurrentThread();
 
                 ITaskSchedulerLogger.SourceQueue whichQueue;
 
@@ -291,7 +339,7 @@ namespace MultiThreadScheduling
 
             try
             {
-                _ofCurrentThread = null;
+                UnsetThisWorkerForCurrentThread();
                 DrainLocalQueue();
             }
             catch (Exception e)

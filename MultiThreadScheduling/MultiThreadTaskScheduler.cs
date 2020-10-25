@@ -120,8 +120,7 @@ namespace MultiThreadScheduling
         /// </param>
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
-            var worker = Worker<WorkItem, Executor>.OfCurrentThread;
-            if (worker != null && !taskWasPreviouslyQueued)
+            if (!taskWasPreviouslyQueued && Worker.IsRunningInWorkerFor(_scheduler))
                 return TryExecuteTask(task);
 
             return false;
