@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.30406.217
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultiThreadScheduling", "MultiThreadScheduling\MultiThreadScheduling.csproj", "{E42F8C32-2EB9-4FE6-B67F-5698A323D99D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiThreadScheduling.Tests", "test\MultiThreadScheduling.Tests.csproj", "{75C59E30-042A-442D-91D1-2B7401B1BACB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{E42F8C32-2EB9-4FE6-B67F-5698A323D99D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E42F8C32-2EB9-4FE6-B67F-5698A323D99D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E42F8C32-2EB9-4FE6-B67F-5698A323D99D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75C59E30-042A-442D-91D1-2B7401B1BACB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75C59E30-042A-442D-91D1-2B7401B1BACB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75C59E30-042A-442D-91D1-2B7401B1BACB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75C59E30-042A-442D-91D1-2B7401B1BACB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
