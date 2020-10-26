@@ -295,6 +295,7 @@ namespace MultiThreadScheduling
             try
             {
                 SetThisWorkerForCurrentThread();
+                SynchronizationContext.SetSynchronizationContext(master.WorkerSyncContext);
 
                 ITaskSchedulerLogger.SourceQueue whichQueue;
 

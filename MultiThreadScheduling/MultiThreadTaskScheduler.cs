@@ -46,7 +46,7 @@ namespace MultiThreadScheduling
     /// not recommended.
     /// </para>
     /// </remarks>
-    public sealed partial class MultiThreadTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable
+    public sealed class MultiThreadTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable
     {
         private readonly MultiThreadScheduler<WorkItem, Executor> _scheduler;
 
@@ -59,9 +59,99 @@ namespace MultiThreadScheduling
             public void Execute(WorkItem workItem) => _taskScheduler.ExecuteItemForWorker(workItem);
         }
 
+        /// <summary>
+        /// Adapt <see cref="MultiThreadTaskScheduler"/>
+        /// into a <see cref="SynchronizationContext"/>.
+        /// </summary>
+        private sealed class SyncContextAdaptor : SynchronizationContext
+        {
+            private readonly MultiThreadTaskScheduler _taskScheduler;
+
+            public SyncContextAdaptor(MultiThreadTaskScheduler taskScheduler)
+            {
+                _taskScheduler = taskScheduler;
+            }
+
+            /// <summary>
+            /// Execute an action synchronously if the current thread is a worker thread,
+            /// or post the action to the scheduler and block until it completes.
+            /// </summary>
+            public override void Send(SendOrPostCallback d, object state)
+            {
+                if (d == null) 
+                    throw new ArgumentNullException(nameof(d));
+
+                if (Worker.IsRunningInWorkerFor(_taskScheduler._scheduler))
+                    d(state);
+                else
+                    BlockingSendCallback.RunAndWait(this, d, state);
+            }
+
+            private class BlockingSendCallback
+            {
+                private readonly SendOrPostCallback OriginalCallback;
+                private readonly object? OriginalState;
+                private Exception? Exception;
+
+                private BlockingSendCallback(SendOrPostCallback d, object? state)
+                {
+                    OriginalCallback = d;
+                    OriginalState = state;
+                }
+
+                public static void RunAndWait(SynchronizationContext syncContext, SendOrPostCallback d, object? state)
+                {
+                    var w = new BlockingSendCallback(d, state);
+                    lock (w)
+                    {
+                        syncContext.Post(s => ((BlockingSendCallback)s!).InvokeAndNotify(), w);
+                        Monitor.Wait(w);
+                    }
+
+                    if (w.Exception != null)
+                        throw w.Exception;
+                }
+
+                private void InvokeAndNotify()
+                {
+                    lock (this)
+                    {
+                        try
+                        {
+                            OriginalCallback(OriginalState);
+                        }
+                        catch (Exception e)
+                        {
+                            Exception = e;
+                        }
+                        
+                        Monitor.Pulse(this);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Post an action to execute by the task scheduler.
+            /// </summary>
+            public override void Post(SendOrPostCallback d, object? state)
+            {
+                if (d == null) throw new ArgumentNullException(nameof(d));
+                _taskScheduler._scheduler.EnqueueItem(new WorkItem(d, state), preferLocal: true);
+            }
+        }
+
+        /// <summary>
+        /// Implementation of SynchronizationContext that sends or posts actions
+        /// to run under this scheduler's worker threads.
+        /// </summary>
+        public SynchronizationContext SynchronizationContext { get; }
+
         public MultiThreadTaskScheduler(ITaskSchedulerLogger? logger)
         {
-            _scheduler = new MultiThreadScheduler<WorkItem, Executor>(new Executor(this), logger);
+            SynchronizationContext = new SyncContextAdaptor(this);
+            _scheduler = new MultiThreadScheduler<WorkItem, Executor>(new Executor(this),
+                                                                      SynchronizationContext,
+                                                                      logger);
         }
 
         internal void ExecuteItemForWorker(WorkItem workItem)

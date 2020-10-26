@@ -19,7 +19,6 @@
     <Compile Include="MultiThreadTaskScheduler.cs" />
     <Compile Include="NullTaskSchedulerLogger.cs" />
     <Compile Include="QuickRandomGenerator.cs" />
-    <Compile Include="SyncContextAdaptor.cs" />
     <Compile Include="Worker.cs" />
     <Compile Include="WorkItem.cs" />
   </ItemGroup>

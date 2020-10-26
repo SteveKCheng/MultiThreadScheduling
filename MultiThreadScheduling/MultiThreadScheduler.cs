@@ -303,13 +303,27 @@ namespace MultiThreadScheduling
         /// <param name="executor">
         /// Object or state for processing work items.
         /// </param>
+        /// <param name="syncContext">The synchronization context to set on all
+        /// worker threads. </param>
         /// <param name="logger">Logger to observe important events during this
         /// scheduler's lifetime. </param>
-        public MultiThreadScheduler(TExecutor executor, ITaskSchedulerLogger? logger)
+        public MultiThreadScheduler(TExecutor executor, 
+                                    SynchronizationContext? syncContext,
+                                    ITaskSchedulerLogger? logger)
         {
             Logger = logger ?? new NullTaskSchedulerLogger();
             Executor = executor;
+            WorkerSyncContext = syncContext;
         }
+
+        /// <summary>
+        /// The synchronization context to establish on all worker threads. 
+        /// </summary>
+        /// <remarks>
+        /// This synchronization context may be constructed such that all actions
+        /// are always re-directed back to run under the same scheduler.
+        /// </remarks>
+        internal SynchronizationContext? WorkerSyncContext { get; }
 
         internal TExecutor Executor;
 
