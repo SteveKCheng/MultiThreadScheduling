@@ -46,17 +46,16 @@ namespace MultiThreadScheduling
     /// not recommended.
     /// </para>
     /// </remarks>
-    public sealed class MultiThreadTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable
+    public sealed class MultiThreadTaskScheduler : TaskScheduler, IDisposable, IAsyncDisposable, IWorkExecutor<WorkItem>
     {
-        private readonly MultiThreadScheduler<WorkItem, Executor> _scheduler;
+        private readonly MultiThreadScheduler<WorkItem, MultiThreadTaskScheduler> _scheduler;
 
-        private readonly struct Executor : IWorkExecutor<WorkItem>
+        void IWorkExecutor<WorkItem>.Execute(WorkItem workItem)
         {
-            private readonly MultiThreadTaskScheduler _taskScheduler;
-
-            public Executor(MultiThreadTaskScheduler taskScheduler) => _taskScheduler = taskScheduler;
-
-            public void Execute(WorkItem workItem) => _taskScheduler.ExecuteItemForWorker(workItem);
+            if (workItem.Task != null)
+                TryExecuteTask(workItem.Task);
+            else
+                workItem.SyncContextAction!(workItem.SyncContextActionState);
         }
 
         /// <summary>
@@ -149,17 +148,9 @@ namespace MultiThreadScheduling
         public MultiThreadTaskScheduler(ITaskSchedulerLogger? logger)
         {
             SynchronizationContext = new SyncContextAdaptor(this);
-            _scheduler = new MultiThreadScheduler<WorkItem, Executor>(new Executor(this),
-                                                                      SynchronizationContext,
-                                                                      logger);
-        }
-
-        internal void ExecuteItemForWorker(WorkItem workItem)
-        {
-            if (workItem.Task != null)
-                TryExecuteTask(workItem.Task);
-            else
-                workItem.SyncContextAction!(workItem.SyncContextActionState);
+            _scheduler = new MultiThreadScheduler<WorkItem, MultiThreadTaskScheduler>(this,
+                                                                                      SynchronizationContext,
+                                                                                      logger);
         }
 
         #region Implementation of TaskScheduler
