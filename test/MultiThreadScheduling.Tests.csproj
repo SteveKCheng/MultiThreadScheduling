@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <Compile Include="CpuAffinityTests.cs" />
+    <Compile Include="CpuTopologyTests.cs" />
   </ItemGroup>
 
 </Project>
