@@ -5,11 +5,13 @@
     <Nullable>enable</Nullable>
     <LangVersion>8</LangVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="BitMask.cs" />
     <Compile Include="ChaseLevQueue.cs" />
+    <Compile Include="CpuAffinity.Linux.cs" />
     <Compile Include="ITaskSchedulerLogger.cs" />
     <Compile Include="IWorkExecutor.cs" />
     <Compile Include="MultiThreadScheduler.cs" />
