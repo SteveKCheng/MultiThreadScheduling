@@ -405,8 +405,12 @@ namespace MultiThreadScheduling
             if (disposalComplete != null)
                 return disposalComplete.Task;
 
+            // Disallow inline execution of continuations because usually a worker thread
+            // that is about to die completes the task.
+            var newDisposalComplete = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously |
+                                                                     TaskCreationOptions.DenyChildAttach);
+
             // Raced to dispose
-            var newDisposalComplete = new TaskCompletionSource<bool>();
             disposalComplete = Interlocked.Exchange(ref _disposalComplete, newDisposalComplete);
             if (disposalComplete != null)
                 return disposalComplete.Task;
