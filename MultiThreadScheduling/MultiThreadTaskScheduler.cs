@@ -56,7 +56,7 @@ namespace MultiThreadScheduling
 
             public Executor(MultiThreadTaskScheduler taskScheduler) => _taskScheduler = taskScheduler;
 
-            public void Execute(WorkItem workItem) => _taskScheduler.ExecuteTaskFromWorker(workItem);
+            public void Execute(WorkItem workItem) => _taskScheduler.ExecuteItemForWorker(workItem);
         }
 
         public MultiThreadTaskScheduler(ITaskSchedulerLogger? logger)
@@ -64,9 +64,12 @@ namespace MultiThreadScheduling
             _scheduler = new MultiThreadScheduler<WorkItem, Executor>(new Executor(this), logger);
         }
 
-        internal void ExecuteTaskFromWorker(WorkItem workItem)
+        internal void ExecuteItemForWorker(WorkItem workItem)
         {
-            TryExecuteTask(workItem.TaskToRun);
+            if (workItem.Task != null)
+                TryExecuteTask(workItem.Task);
+            else
+                workItem.SyncContextAction!(workItem.SyncContextActionState);
         }
 
         #region Implementation of TaskScheduler
@@ -77,7 +80,12 @@ namespace MultiThreadScheduling
         /// <returns></returns>
         protected override IEnumerable<Task> GetScheduledTasks()
         {
-            return _scheduler.GetScheduledItems().Select(item => item.TaskToRun);
+            // Explicit loop to avoid LINQ, for efficiency
+            foreach (var workItem in _scheduler.GetScheduledItems())
+            {
+                if (workItem.Task != null)
+                    yield return workItem.Task;
+            }
         }
 
         /// <summary>
@@ -87,7 +95,7 @@ namespace MultiThreadScheduling
         /// </param>
         protected override void QueueTask(Task task)
         {
-            var workItem = new WorkItem { TaskToRun = task };
+            var workItem = new WorkItem(task);
             var taskOptions = task.CreationOptions;
 
             if ((taskOptions & TaskCreationOptions.LongRunning) != 0)
