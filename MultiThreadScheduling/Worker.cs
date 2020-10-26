@@ -89,7 +89,7 @@ namespace MultiThreadScheduling
         /// <summary>
         /// Name attached to this worker to aid debugging.
         /// </summary>
-        public string Name => _thread.Name;
+        public string Name => _thread.Name!;
 
         /// <summary>
         /// Flag to signal to the master that this worker has voluntarily stopped

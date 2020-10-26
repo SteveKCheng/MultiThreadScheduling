@@ -75,7 +75,7 @@ namespace MultiThreadScheduling
             /// Execute an action synchronously if the current thread is a worker thread,
             /// or post the action to the scheduler and block until it completes.
             /// </summary>
-            public override void Send(SendOrPostCallback d, object state)
+            public override void Send(SendOrPostCallback d, object? state)
             {
                 if (d == null) 
                     throw new ArgumentNullException(nameof(d));
