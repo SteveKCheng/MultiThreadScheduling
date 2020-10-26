@@ -380,7 +380,13 @@ namespace MultiThreadScheduling
         /// with a timeout.
         /// </para>
         /// </remarks>
-        public void Dispose() => DisposeAsync().Wait();
+        public void Dispose()
+        {
+            if (Worker.IsRunningInWorkerFor(this))
+                throw new InvalidOperationException($"{nameof(MultiThreadScheduling)}.{nameof(Dispose)} may not be called from within one of its worker threads, because it would deadlock. ");
+
+            DisposeAsync().Wait();
+        }
 
         ValueTask IAsyncDisposable.DisposeAsync() => new ValueTask(DisposeAsync());
 
@@ -393,13 +399,12 @@ namespace MultiThreadScheduling
         /// </remarks>
         /// <returns>Task that completes only when disposal is complete.
         /// If this method gets called (concurrently) multiple times, their returned
-        /// Task objects all complete only when the disposal completes.
+        /// Task objects all complete only when the disposal completes.  The returned
+        /// Task should not be synchronously waited, via <see cref="Task.Wait"/>,
+        /// from a worker thread, or disposal will deadlock.
         /// </returns>
         public Task DisposeAsync()
         {
-            if (Worker.IsRunningInWorkerFor(this))
-                throw new InvalidOperationException($"{nameof(MultiThreadScheduling)}.{nameof(Dispose)} may not be called from within one of its worker threads. ");
-
             // Somebody is already disposing or has disposed
             var disposalComplete = _disposalComplete;
             if (disposalComplete != null)
