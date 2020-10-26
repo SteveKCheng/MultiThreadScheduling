@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="BitMask.cs" />
     <Compile Include="ChaseLevQueue.cs" />
     <Compile Include="ITaskSchedulerLogger.cs" />
     <Compile Include="IWorkExecutor.cs" />
