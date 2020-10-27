@@ -11,6 +11,16 @@ namespace MultiThreadScheduling
     internal struct CpuTopologyInfo
     {
         /// <summary>
+        /// ID for the logical CPU.  
+        /// </summary>
+        /// <remarks>
+        /// This member is guaranteed to be an increasing integer when 
+        /// an array of <see cref="CpuTopologyInfo"/> is reported by
+        /// <see cref="GetList"/>.
+        /// </remarks>
+        public short LogicalId;
+
+        /// <summary>
         /// ID for the CPU core this logical CPU is part of.
         /// </summary>
         public short CoreId;
@@ -30,23 +40,28 @@ namespace MultiThreadScheduling
         /// <returns>Whether the path string matches the expected string
         /// for a CPU entry.
         /// </returns>
-        private static bool IsSysFsCpuDirectory(string path, out int id)
+        private static bool IsSysFsCpuDirectory(string path, out short id)
         {
+            id = 0;
             var span = path.AsSpan();
 
             var index = span.LastIndexOf('/');
             if (index < 0)
-            {
-                id = 0;
                 return false;
-            }
                 
             span = span.Slice(index + 1);
             if (!span.StartsWith("cpu"))
                 return false;
             span = span.Slice(3);
 
-            return int.TryParse(span, System.Globalization.NumberStyles.None, CultureInfo.InvariantCulture, out id) && id >= 0;
+            if (int.TryParse(span, System.Globalization.NumberStyles.None, CultureInfo.InvariantCulture, out var idInt)
+                && idInt >= 0 && idInt <= short.MaxValue)
+            {
+                id = (short)idInt;
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -89,6 +104,7 @@ namespace MultiThreadScheduling
 
             return new CpuTopologyInfo
             {
+                LogicalId = (short)cpuId,
                 CoreId = ParseShortIntegerFromFile(dirPath + "core_id", buffer),
                 PackageId = ParseShortIntegerFromFile(dirPath + "physical_package_id", buffer)
             };
@@ -97,30 +113,24 @@ namespace MultiThreadScheduling
         /// <summary>
         /// Get the list of all logical CPUs in the host system.
         /// </summary>
-        public static CpuTopologyInfo?[] GetList()
+        public static CpuTopologyInfo[] GetList()
         {
-            int maxCpuId = -1;
-
-            Span<bool> mask = stackalloc bool[short.MaxValue];
+            var cpuMask = new BitMask(stackalloc ulong[512]);
+            int cpuCount = 0;
 
             foreach (var fullDirName in Directory.EnumerateDirectories("/sys/devices/system/cpu/"))
             {
-                if (IsSysFsCpuDirectory(fullDirName, out var cpuId) && cpuId <= short.MaxValue)
+                if (IsSysFsCpuDirectory(fullDirName, out var cpuIdShort))
                 {
-                    maxCpuId = Math.Max(maxCpuId, cpuId);
-                    mask[cpuId] = true;
+                    cpuMask[cpuIdShort] = true;
+                    cpuCount++;
                 }
             }
 
-            if (maxCpuId < 0)
-                return new CpuTopologyInfo?[0];
-
-            var infoArray = new CpuTopologyInfo?[maxCpuId + 1];
-            for (int cpuId = 0; cpuId <= maxCpuId; ++cpuId)
-            {
-                if (mask[cpuId])
-                    infoArray[cpuId] = ReadFromSysFsFile(cpuId);
-            }
+            var infoArray = new CpuTopologyInfo[cpuCount];
+            int cpuId = -1;
+            for (int i = 0; (cpuId = cpuMask.GetIndexOfNextOnBit(++cpuId)) >= 0; ++i)
+                infoArray[i] = ReadFromSysFsFile(cpuId);
 
             return infoArray;
         }
