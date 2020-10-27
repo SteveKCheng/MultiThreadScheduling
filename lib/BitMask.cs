@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("MultiThreadScheduling.Tests")]
@@ -25,6 +26,9 @@ namespace MultiThreadScheduling
             _buffer = buffer;
         }
 
+        /// <summary>
+        /// Get or set a bit at the specified location.
+        /// </summary>
         public bool this[int index]
         {
             get
@@ -46,22 +50,70 @@ namespace MultiThreadScheduling
             }
         }
 
+        /// <summary>
+        /// Turn all bits off.
+        /// </summary>
         public void Clear()
         {
             for (int i = 0; i < _buffer.Length; ++i)
                 _buffer[i] = 0;
         }
 
-        public void SetAll()
+        /// <summary>
+        /// Turn all bits on.
+        /// </summary>
+        public void SetOnAll()
         {
             for (int i = 0; i < _buffer.Length; ++i)
                 _buffer[i] = unchecked((ulong)-1);
         }
 
+        /// <summary>
+        /// The number of elements stored by this bit mask.  It is always
+        /// a multiple of the word size in bits, which is 64.
+        /// </summary>
         public int Count => _buffer.Length * 64;
 
         public System.UIntPtr NumNativeWords => (System.UIntPtr)_buffer.Length;
 
         public ref ulong GetPinnableReference() => ref _buffer.GetPinnableReference();
+
+        /// <summary>
+        /// Find the position of the next bit, on or after <see cref="startIndex"/>,
+        /// that is set on.
+        /// </summary>
+        /// <param name="startIndex">Index of the bit to start scanning from. </param>
+        /// <returns>Position of the next bit that is set, or -1 if all the bits
+        /// from <see cref="startIndex"/> onwards are off.</returns>
+        public int GetIndexOfNextOnBit(int startIndex)
+        {
+            if (startIndex < 0)
+                throw new IndexOutOfRangeException();
+
+            if (startIndex >= 64 * _buffer.Length)
+                return -1;
+
+            // Scan one 64-bit word at a time
+            int wordIndex = (startIndex >> 6);
+            ulong currentWord = _buffer[wordIndex] & (unchecked((ulong)-1) << (startIndex & 63));
+            while (currentWord == 0)
+            {
+                if (++wordIndex == _buffer.Length) return -1;
+                currentWord = _buffer[wordIndex];
+            }
+
+            return (wordIndex << 6) + BitOperations.TrailingZeroCount(currentWord);
+        }
+
+        /// <summary>
+        /// Count the number of bits that are set on.
+        /// </summary>
+        public int CountOnBits()
+        {
+            int sum = 0;
+            for (int i = 0; i < _buffer.Length; ++i)
+                sum += BitOperations.PopCount(_buffer[i]);
+            return sum;
+        }
     }
 }
