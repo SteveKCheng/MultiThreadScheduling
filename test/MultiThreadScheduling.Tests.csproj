@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="BitMaskTests.cs" />
     <Compile Include="CpuAffinityTests.cs" />
     <Compile Include="CpuTopologyTests.cs" />
   </ItemGroup>
