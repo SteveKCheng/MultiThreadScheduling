@@ -14,7 +14,13 @@ namespace MultiThreadScheduling.Tests
                 return;
 
             var infoArray = CpuTopologyInfo.GetList();
-            Assert.NotNull(infoArray);
+
+            for (int i = 0; i < infoArray.Length; ++i)
+                Assert.Equal(infoArray[i].LogicalId, i);
+
+            // Environment.ProcessorCount may be less than the number
+            // of logical CPUs because of CPU quota.
+            Assert.InRange(infoArray.Length, Environment.ProcessorCount, int.MaxValue);
         }
     }
 }
