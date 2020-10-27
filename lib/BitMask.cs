@@ -75,6 +75,21 @@ namespace MultiThreadScheduling
         public int Count => _buffer.Length * 64;
 
         public System.UIntPtr NumNativeWords => (System.UIntPtr)_buffer.Length;
+        
+        /// <summary>
+        /// Get the number of machine words for a bit mask
+        /// needed to hold some number of bits.
+        /// </summary>
+        /// <param name="count">Desired number of elements to store
+        /// in the bit mask.
+        /// </param>
+        public static int GetNumberOfNativeWords(int count)
+        {
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count));
+
+            return (count + 63) / 64;
+        }
 
         public ref ulong GetPinnableReference() => ref _buffer.GetPinnableReference();
 

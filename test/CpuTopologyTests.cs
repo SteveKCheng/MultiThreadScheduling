@@ -8,7 +8,7 @@ namespace MultiThreadScheduling.Tests
     public class CpuTopologyTests
     {
         [Fact]
-        public void Test1()
+        public void GetList()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 return;
@@ -21,6 +21,9 @@ namespace MultiThreadScheduling.Tests
             // Environment.ProcessorCount may be less than the number
             // of logical CPUs because of CPU quota.
             Assert.InRange(infoArray.Length, Environment.ProcessorCount, int.MaxValue);
+
+            var numCores = CpuTopologyInfo.CountNumberOfCores(infoArray);
+            Assert.InRange(numCores, 1, infoArray.Length);
         }
     }
 }

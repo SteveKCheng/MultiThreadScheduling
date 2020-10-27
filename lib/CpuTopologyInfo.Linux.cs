@@ -138,5 +138,23 @@ namespace MultiThreadScheduling
 
             return infoArray;
         }
+
+        /// <summary>
+        /// Count how many physical cores in total are present.
+        /// </summary>
+        /// <param name="infoArray">CPU topology info from <see cref="GetList"/>. </param>
+        public static int CountNumberOfCores(CpuTopologyInfo[] infoArray)
+        {
+            // Prevent stack overflow
+            if (infoArray.Length > short.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(infoArray));
+
+            var cores = new BitMask(stackalloc ulong[BitMask.GetNumberOfNativeWords(infoArray.Length)]);
+
+            foreach (var item in infoArray)
+                cores[item.CoreId] = true;
+
+            return cores.CountOnBits();
+        }
     }
 }
