@@ -10,9 +10,6 @@ namespace MultiThreadScheduling.Tests
         [Fact]
         public void GetList()
         {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return;
-
             var infoArray = CpuTopologyInfo.GetList();
 
             for (int i = 0; i < infoArray.Length; ++i)

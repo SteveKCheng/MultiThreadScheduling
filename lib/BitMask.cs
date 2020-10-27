@@ -68,6 +68,20 @@ namespace MultiThreadScheduling
                 _buffer[i] = unchecked((ulong)-1);
         }
 
+        public void SetWord64(int wordIndex, ulong word)
+        {
+            _buffer[wordIndex] = word;
+        }
+
+        public void SetWord32(int wordIndex, uint word)
+        {
+            ref ulong c = ref _buffer[wordIndex >> 1];
+            if ((wordIndex & 1) == 0)
+                c = (c & ((ulong)0xFFFFFFFF00000000)) | ((ulong)word);
+            else
+                c = (c & ((ulong)0xFFFFFFFF)) | (((ulong)word) << 32);
+        }
+
         /// <summary>
         /// The number of elements stored by this bit mask.  It is always
         /// a multiple of the word size in bits, which is 64.

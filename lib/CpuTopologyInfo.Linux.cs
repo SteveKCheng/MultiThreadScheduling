@@ -8,28 +8,8 @@ namespace MultiThreadScheduling
     /// <summary>
     /// Information on the topology of a logical CPU, relevant for scheduling threads.
     /// </summary>
-    internal struct CpuTopologyInfo
+    internal partial struct CpuTopologyInfo
     {
-        /// <summary>
-        /// ID for the logical CPU.  
-        /// </summary>
-        /// <remarks>
-        /// This member is guaranteed to be an increasing integer when 
-        /// an array of <see cref="CpuTopologyInfo"/> is reported by
-        /// <see cref="GetList"/>.
-        /// </remarks>
-        public short LogicalId;
-
-        /// <summary>
-        /// ID for the CPU core this logical CPU is part of.
-        /// </summary>
-        public short CoreId;
-
-        /// <summary>
-        /// ID for the CPU physical package this logical CPU is part of.
-        /// </summary>
-        public short PackageId;
-
         /// <summary>
         /// Check if the last segment of the path is of the form "cpuN" 
         /// which is the name of the entry for a CPU under Linux's sysfs tree.
@@ -40,7 +20,7 @@ namespace MultiThreadScheduling
         /// <returns>Whether the path string matches the expected string
         /// for a CPU entry.
         /// </returns>
-        private static bool IsSysFsCpuDirectory(string path, out short id)
+        private static bool Linux_IsSysFsCpuDirectory(string path, out short id)
         {
             id = 0;
             var span = path.AsSpan();
@@ -70,7 +50,7 @@ namespace MultiThreadScheduling
         /// </summary>
         /// <param name="filePath">Full path to the sysfs file. </param>
         /// <returns>The integer read. </returns>
-        private static short ParseShortIntegerFromFile(string filePath)
+        private static short Linux_ParseShortIntegerFromFile(string filePath)
         {
             Span<byte> buffer = stackalloc byte[32];
 
@@ -102,29 +82,26 @@ namespace MultiThreadScheduling
         /// </summary>
         /// <param name="cpuId">Integer ID assigned to the logical CPU. </param>
         /// <returns>Basic topological information about the logical CPU. </returns>
-        private static CpuTopologyInfo ReadFromSysFsFile(int cpuId)
+        private static CpuTopologyInfo Linux_ReadFromSysFsFile(int cpuId)
         {
             var dirPath = $"/sys/devices/system/cpu/cpu{cpuId}/topology/";
 
             return new CpuTopologyInfo
             {
                 LogicalId = (short)cpuId,
-                CoreId = ParseShortIntegerFromFile(dirPath + "core_id"),
-                PackageId = ParseShortIntegerFromFile(dirPath + "physical_package_id")
+                CoreId = Linux_ParseShortIntegerFromFile(dirPath + "core_id"),
+                PackageId = Linux_ParseShortIntegerFromFile(dirPath + "physical_package_id")
             };
         }
 
-        /// <summary>
-        /// Get the list of all logical CPUs in the host system.
-        /// </summary>
-        public static CpuTopologyInfo[] GetList()
+        private static CpuTopologyInfo[] Linux_GetList()
         {
             var cpuMask = new BitMask(stackalloc ulong[512]);
             int cpuCount = 0;
 
             foreach (var fullDirName in Directory.EnumerateDirectories("/sys/devices/system/cpu/"))
             {
-                if (IsSysFsCpuDirectory(fullDirName, out var cpuIdShort))
+                if (Linux_IsSysFsCpuDirectory(fullDirName, out var cpuIdShort))
                 {
                     cpuMask[cpuIdShort] = true;
                     cpuCount++;
@@ -134,27 +111,9 @@ namespace MultiThreadScheduling
             var infoArray = new CpuTopologyInfo[cpuCount];
             int cpuId = -1;
             for (int i = 0; (cpuId = cpuMask.GetIndexOfNextOnBit(++cpuId)) >= 0; ++i)
-                infoArray[i] = ReadFromSysFsFile(cpuId);
+                infoArray[i] = Linux_ReadFromSysFsFile(cpuId);
 
             return infoArray;
-        }
-
-        /// <summary>
-        /// Count how many physical cores in total are present.
-        /// </summary>
-        /// <param name="infoArray">CPU topology info from <see cref="GetList"/>. </param>
-        public static int CountNumberOfCores(CpuTopologyInfo[] infoArray)
-        {
-            // Prevent stack overflow
-            if (infoArray.Length > short.MaxValue)
-                throw new ArgumentOutOfRangeException(nameof(infoArray));
-
-            var cores = new BitMask(stackalloc ulong[BitMask.GetNumberOfNativeWords(infoArray.Length)]);
-
-            foreach (var item in infoArray)
-                cores[item.CoreId] = true;
-
-            return cores.CountOnBits();
         }
     }
 }
