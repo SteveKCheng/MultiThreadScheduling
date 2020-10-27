@@ -69,14 +69,20 @@ namespace MultiThreadScheduling
         /// non-negative integer, written in decimal ASCII digits.
         /// </summary>
         /// <param name="filePath">Full path to the sysfs file. </param>
-        /// <param name="buffer">Pre-allocated buffer for reading the file. </param>
         /// <returns>The integer read. </returns>
-        private static short ParseShortIntegerFromFile(string filePath, Span<byte> buffer)
+        private static short ParseShortIntegerFromFile(string filePath)
         {
+            Span<byte> buffer = stackalloc byte[32];
+
             using (var file = File.OpenRead(filePath))
             {
                 int bytesRead = file.Read(buffer);
-                if (file.Position != file.Length)
+
+                // Roundabout way of checking if we are not at end of file yet.
+                // We cannot use file.Length because the kernel reports an incorrect
+                // size, 4096, for the sysfs file.  This bug is even visible from
+                // the output of the "ls" command!
+                if (bytesRead > 16)
                     throw new Exception($"Unexpected data in {filePath}");
 
                 if (bytesRead <= 0 || buffer[bytesRead - 1] != 0x0A)
@@ -98,15 +104,13 @@ namespace MultiThreadScheduling
         /// <returns>Basic topological information about the logical CPU. </returns>
         private static CpuTopologyInfo ReadFromSysFsFile(int cpuId)
         {
-            Span<byte> buffer = stackalloc byte[64];
-
             var dirPath = $"/sys/devices/system/cpu/cpu{cpuId}/topology/";
 
             return new CpuTopologyInfo
             {
                 LogicalId = (short)cpuId,
-                CoreId = ParseShortIntegerFromFile(dirPath + "core_id", buffer),
-                PackageId = ParseShortIntegerFromFile(dirPath + "physical_package_id", buffer)
+                CoreId = ParseShortIntegerFromFile(dirPath + "core_id"),
+                PackageId = ParseShortIntegerFromFile(dirPath + "physical_package_id")
             };
         }
 
