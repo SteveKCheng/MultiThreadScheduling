@@ -40,6 +40,8 @@ namespace MultiThreadScheduling.Tests
                 Assert.Equal(i, subtasks[i].Result);
 
             Assert.Equal(subtasks.Length, logger.GlobalTasksCount);
+
+            await taskScheduler.DisposeAsync();
         }
 
         [Fact]
@@ -93,6 +95,8 @@ namespace MultiThreadScheduling.Tests
             Assert.Equal(stolenTasksCount, logger.StolenTasksCount);
             Assert.Equal(tasks.Length, logger.GlobalTasksCount);
             Assert.Equal(tasks.Length * numChildTasks - stolenTasksCount, logger.LocalTasksCount);
+
+            await taskScheduler.DisposeAsync();
         }
 
         private class CountTasksLogger : ISchedulingLogger
