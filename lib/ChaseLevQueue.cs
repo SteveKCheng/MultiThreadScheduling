@@ -261,17 +261,28 @@ namespace MultiThreadScheduling
                 // Non-empty queue.
                 if (b - t >= 0)
                 {
-                    bool success = true;
                     ref TItem y = ref storage[b & (storage.Length - 1)];
                     item = y;
 
                     // Single last element in queue.
                     if (b == t)
-                        success = (Interlocked.CompareExchange(ref this._top, t + 1, t) == t);
+                    {
+                        if (Interlocked.CompareExchange(ref this._top, t + 1, t) != t)
+                        {
+                            item = default!;
+                            return false;
+                        }
 
-                    (success ? ref y : ref item) = default!;
-                    this._bottom = b + 1;
-                    return success;
+                        this._bottom = b + 1;
+                    }
+
+                    // Erase the existing entry to avoid dangling references for GC.
+                    // Since the Chase-Lev queue only allows pushing from one
+                    // designated flow of execution, namely this one, no harmful
+                    // data race will be caused here.
+                    y = default!;
+
+                    return true;
                 }
 
                 // Queue is empty.
