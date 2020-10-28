@@ -180,6 +180,11 @@ namespace MultiThreadScheduling
             _scheduler.SetSchedulingOptions(settings);
         }
 
+        /// <summary>
+        /// Get the currently set scheduling options.
+        /// </summary>
+        public MultiThreadSchedulingSettings SchedulingOptions => _scheduler.SchedulingOptions;
+
         #region Implementation of TaskScheduler
 
         /// <summary>
