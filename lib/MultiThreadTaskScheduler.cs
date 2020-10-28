@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Sources;
 
 namespace MultiThreadScheduling
 {
@@ -51,15 +52,31 @@ namespace MultiThreadScheduling
     {
         private readonly MultiThreadScheduler<WorkItem, MultiThreadTaskScheduler> _scheduler;
 
-        void IWorkExecutor<WorkItem>.Execute(WorkItem workItem)
+        WorkExecutionStatus IWorkExecutor<WorkItem>.Execute(WorkItem workItem)
         {
             var action = workItem.Action;
 
             // A delegate type is sealed so maybe the type check is faster...
             if (action is SendOrPostCallback syncContextAction)
+            {
                 syncContextAction(workItem.State);
+                return WorkExecutionStatus.Completed;
+            }
             else
-                TryExecuteTask(Unsafe.As<Task>(action));
+            {
+                var task = Unsafe.As<Task>(action);
+                bool success = TryExecuteTask(task);
+                if (!success)
+                    return WorkExecutionStatus.Faulted;
+
+                return task.Status switch
+                {
+                    TaskStatus.RanToCompletion => WorkExecutionStatus.Completed,
+                    TaskStatus.Faulted => WorkExecutionStatus.Faulted,
+                    TaskStatus.Canceled => WorkExecutionStatus.Cancelled,
+                    _ /* task is still awaiting  */ => WorkExecutionStatus.Succeeded
+                };
+            }
         }
 
         WorkItemInfo IWorkExecutor<WorkItem>.GetWorkItemInfo(WorkItem workItem)

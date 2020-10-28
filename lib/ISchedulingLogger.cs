@@ -68,7 +68,11 @@ namespace MultiThreadScheduling
         /// <param name="sourceQueue">Where the task item came from. </param>
         /// <param name="workInfo">The same information about the work item
         /// passed in to <see cref="BeginTask"/>. </param>
-        void EndTask(uint workerId, SourceQueue sourceQueue, in WorkItemInfo workInfo);
+        /// <param name="workStatus">Status after having run the work item. </param>
+        void EndTask(uint workerId, 
+                     SourceQueue sourceQueue, 
+                     in WorkItemInfo workInfo, 
+                     WorkExecutionStatus workStatus);
 
         /// <summary>
         /// A worker thread is about to become idle because it (momentarily)

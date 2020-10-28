@@ -132,7 +132,10 @@ namespace MultiThreadScheduling.Tests
                 }
             }
 
-            public void EndTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue, in WorkItemInfo workInfo)
+            public void EndTask(uint workerId, 
+                                ISchedulingLogger.SourceQueue sourceQueue, 
+                                in WorkItemInfo workInfo,
+                                WorkExecutionStatus workStatus)
             {
             }
 

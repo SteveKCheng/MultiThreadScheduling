@@ -356,15 +356,16 @@ namespace MultiThreadScheduling
                     }
 
                     var workInfo = master.Executor.GetWorkItemInfo(workItem);
+                    var status = WorkExecutionStatus.Faulted;
 
                     try
                     {
                         logger.BeginTask(workerId, whichQueue, workInfo);
-                        master.Executor.Execute(workItem);
+                        status = master.Executor.Execute(workItem);
                     }
                     finally
                     {
-                        logger.EndTask(workerId, whichQueue, workInfo);
+                        logger.EndTask(workerId, whichQueue, workInfo, status);
                     }
                 }
             }

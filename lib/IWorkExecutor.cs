@@ -22,7 +22,7 @@ namespace MultiThreadScheduling
         /// This method normally should not propagate exceptions out.  Exceptions
         /// will cause the worker thread to terminate.
         /// </remarks>
-        void Execute(TWorkItem workItem);
+        WorkExecutionStatus Execute(TWorkItem workItem);
 
         /// <summary>
         /// Get a summary of the work item about to be executed, 
@@ -35,6 +35,33 @@ namespace MultiThreadScheduling
         /// worker thread.
         /// </remarks>
         WorkItemInfo GetWorkItemInfo(TWorkItem workItem);
+    }
+
+    /// <summary>
+    /// Summarizes the status of running a work item, for logging.
+    /// </summary>
+    public enum WorkExecutionStatus
+    {
+        /// <summary>
+        /// The work has been run successfully, but may be re-queued again
+        /// because it is currently awaiting other work.
+        /// </summary>
+        Succeeded = 0,
+
+        /// <summary>
+        /// The work has been completed successfully.
+        /// </summary>
+        Completed = 1,
+
+        /// <summary>
+        /// The work was cancelled.
+        /// </summary>
+        Cancelled = 2,
+
+        /// <summary>
+        /// The work has failed.
+        /// </summary>
+        Faulted = 3,
     }
 
     /// <summary>

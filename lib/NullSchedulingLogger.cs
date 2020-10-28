@@ -10,11 +10,16 @@ namespace MultiThreadScheduling
     /// </summary>
     public class NullSchedulingLogger : ISchedulingLogger
     {
-        public void BeginTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue, in WorkItemInfo workInfo)
+        public void BeginTask(uint workerId, 
+                              ISchedulingLogger.SourceQueue sourceQueue, 
+                              in WorkItemInfo workInfo)
         {
         }
 
-        public void EndTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue, in WorkItemInfo workInfo)
+        public void EndTask(uint workerId, 
+                            ISchedulingLogger.SourceQueue sourceQueue, 
+                            in WorkItemInfo workInfo,
+                            WorkExecutionStatus workStatus)
         {
         }
 
