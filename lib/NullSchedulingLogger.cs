@@ -18,6 +18,10 @@ namespace MultiThreadScheduling
         {
         }
 
+        public void Idle(uint workerId)
+        {
+        }
+
         public void RaiseCriticalError(Exception exception)
         {
         }

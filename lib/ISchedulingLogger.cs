@@ -48,6 +48,17 @@ namespace MultiThreadScheduling
         void EndTask(uint workerId, SourceQueue sourceQueue);
 
         /// <summary>
+        /// A worker thread is about to become idle because it (momentarily)
+        /// found no work to execute.
+        /// </summary>
+        /// <param name="workerId">ID of the worker thread calling this method. </param>
+        /// <remarks>
+        /// The worker thread implicitly stops idling (sleeping) when 
+        /// it next invokes another method in this interface.
+        /// </remarks>
+        void Idle(uint workerId);
+
+        /// <summary>
         /// Called when an exception occurs in the worker's queue
         /// processing or when a task propagates out an exception.
         /// </summary>

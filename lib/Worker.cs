@@ -317,6 +317,7 @@ namespace MultiThreadScheduling
         {
             var master = this._master;
             var logger = master.Logger;
+            var workerId = this.Id;
 
             // Should not fail
             master.IncrementActiveThreadCount();
@@ -347,18 +348,19 @@ namespace MultiThreadScheduling
                     }
                     else
                     {
+                        logger.Idle(workerId);
                         master.WaitOnSemaphore();
                         continue;
                     }
 
                     try
                     {
-                        logger.BeginTask(Id, whichQueue);
+                        logger.BeginTask(workerId, whichQueue);
                         master.Executor.Execute(workItem);
                     }
                     finally
                     {
-                        logger.EndTask(Id, whichQueue);
+                        logger.EndTask(workerId, whichQueue);
                     }
                 }
             }

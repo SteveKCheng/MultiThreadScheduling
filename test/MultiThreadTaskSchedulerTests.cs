@@ -129,6 +129,10 @@ namespace MultiThreadScheduling.Tests
             {
             }
 
+            public void Idle(uint workerId)
+            {
+            }
+
             public void RaiseCriticalError(Exception exception)
             {
             }
