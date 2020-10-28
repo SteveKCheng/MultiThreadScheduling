@@ -31,24 +31,18 @@ namespace MultiThreadScheduling
     /// </typeparam>
     /// <typeparam name="TExecutor">
     /// Type of the object or state that can process an instance of <typeparamref name="TWorkItem"/>.
+    /// It is recommended that this type not be a mutable struct.
     /// </typeparam>
     public class MultiThreadScheduler<TWorkItem, TExecutor> : IDisposable, IAsyncDisposable 
         where TExecutor: IWorkExecutor<TWorkItem>
     {
+        #region Global work queue
+
         /// <summary>
         /// The queue that work items are put in when they do not come from a
         /// worker thread.
         /// </summary>
         private ConcurrentQueue<TWorkItem> _globalQueue = new ConcurrentQueue<TWorkItem>();
-
-        /// <summary>
-        /// Tracks all worker threads that have been instantiated.
-        /// </summary>
-        /// <remarks>
-        /// The "track all values" functionality of <see cref="ThreadLocal{Worker}"/>
-        /// is not used because it is not efficient.
-        /// </remarks>
-        internal Worker<TWorkItem, TExecutor>[]? AllWorkers { get; private set; }
 
         /// <summary>
         /// Signals to worker threads that there may be items to run.
@@ -68,7 +62,18 @@ namespace MultiThreadScheduling
         /// </remarks>
         private SemaphoreSlim _semaphore = new SemaphoreSlim(0);
 
+        #endregion
+
         #region Dynamically adjusting the number of workers
+
+        /// <summary>
+        /// Tracks all worker threads that have been instantiated.
+        /// </summary>
+        /// <remarks>
+        /// The "track all values" functionality of <see cref="ThreadLocal{Worker}"/>
+        /// is not used because it is not efficient.
+        /// </remarks>
+        internal Worker<TWorkItem, TExecutor>[]? AllWorkers { get; private set; }
 
         /// <summary>
         /// .NET object to lock when adjusting the number of workers.
@@ -228,44 +233,6 @@ namespace MultiThreadScheduling
         }
 
         /// <summary>
-        /// Check if a worker should quit because the desired number of workers
-        /// has been adjusted downwards.
-        /// </summary>
-        /// <param name="hasQuit">Backing field for the worker's
-        /// <see cref="Worker.HasQuit"/> property.  The property 
-        /// must be modified by this method because it does so under a lock.
-        /// </param>
-        /// <returns>True if the worker should continue running; false
-        /// if it should quit. </returns>
-        internal bool ShouldWorkerContinueRunning(ref bool hasQuit)
-        {
-            if (_excessNumThreads > 0)
-            {
-                lock (LockObject)
-                {
-                    if (_excessNumThreads > 0)
-                    {
-                        bool reachedZero = (--_excessNumThreads == 0);
-
-                        --_totalNumThreads;
-
-                        // Change this property while holding the lock so that 
-                        // this worker is guaranteed to be removed from the array
-                        // of all workers when excessNumThreads reaches zero.
-                        hasQuit = true;
-
-                        if (reachedZero)
-                            ConsolidateWorkersAfterTrimmingExcess();
-
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>
         /// Re-create the <see cref="AllWorkers"/> array after trimming
         /// excess workers.
         /// </summary>
@@ -297,6 +264,8 @@ namespace MultiThreadScheduling
 
         #endregion
 
+        #region User control of scheduling
+
         /// <summary>
         /// Prepare to accept tasks.  No worker threads are started initially.
         /// </summary>
@@ -316,6 +285,10 @@ namespace MultiThreadScheduling
             WorkerSyncContext = syncContext;
         }
 
+        #endregion
+
+        #region User-customizable state objects
+
         /// <summary>
         /// The synchronization context to establish on all worker threads. 
         /// </summary>
@@ -325,12 +298,21 @@ namespace MultiThreadScheduling
         /// </remarks>
         internal SynchronizationContext? WorkerSyncContext { get; }
 
+        /// <summary>
+        /// Executes any abstract work item that gets queued.
+        /// </summary>
+        /// <remarks>
+        /// This member is not a property in case it is a mutable struct.
+        /// </remarks>
         internal TExecutor Executor;
 
         /// <summary>
-        /// 
+        /// Called to log significant events as this scheduler and its
+        /// worker threads run.
         /// </summary>
         public ITaskSchedulerLogger Logger { get; }
+
+        #endregion
 
         #region Disposal
 
@@ -484,6 +466,44 @@ namespace MultiThreadScheduling
             }
         }
 
+        /// <summary>
+        /// Check if a worker should quit because the desired number of workers
+        /// has been adjusted downwards.
+        /// </summary>
+        /// <param name="hasQuit">Backing field for the worker's
+        /// <see cref="Worker.HasQuit"/> property.  The property 
+        /// must be modified by this method because it does so under a lock.
+        /// </param>
+        /// <returns>True if the worker should continue running; false
+        /// if it should quit. </returns>
+        internal bool ShouldWorkerContinueRunning(ref bool hasQuit)
+        {
+            if (_excessNumThreads > 0)
+            {
+                lock (LockObject)
+                {
+                    if (_excessNumThreads > 0)
+                    {
+                        bool reachedZero = (--_excessNumThreads == 0);
+
+                        --_totalNumThreads;
+
+                        // Change this property while holding the lock so that 
+                        // this worker is guaranteed to be removed from the array
+                        // of all workers when excessNumThreads reaches zero.
+                        hasQuit = true;
+
+                        if (reachedZero)
+                            ConsolidateWorkersAfterTrimmingExcess();
+
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         #endregion
 
         #region Viewing and manipulating the queue
@@ -527,6 +547,5 @@ namespace MultiThreadScheduling
         }
 
         #endregion
-
     }
 }
