@@ -109,7 +109,7 @@ namespace MultiThreadScheduling.Tests
             public int GlobalTasksCount => _globalTasksCount;
             public int StolenTasksCount => _stolenTasksCount;
 
-            public void BeginTask(ISchedulingLogger.SourceQueue sourceQueue)
+            public void BeginTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue)
             {
                 switch (sourceQueue)
                 {
@@ -125,7 +125,7 @@ namespace MultiThreadScheduling.Tests
                 }
             }
 
-            public void EndTask(ISchedulingLogger.SourceQueue sourceQueue)
+            public void EndTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue)
             {
             }
 

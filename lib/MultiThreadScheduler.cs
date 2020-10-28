@@ -225,6 +225,7 @@ namespace MultiThreadScheduling
                                         threadPriority,
                                         initialDequeCapacity: 256,
                                         seed: random.Next(),
+                                        id: workerId,
                                         name: $"{nameof(MultiThreadTaskScheduler)} thread #{workerId}");
                 }
 

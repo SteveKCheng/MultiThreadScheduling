@@ -234,6 +234,7 @@ namespace MultiThreadScheduling
         /// </param>
         /// <param name="seed">Seed for the pseudo-random generator
         /// to select other workers to steal from. </param>
+        /// <param name="id">Integer ID assigned to this worker. </param>
         /// <param name="name">The name assigned to this worker for debugging.
         /// This name will become the (managed) name of the thread.
         /// </param>
@@ -241,6 +242,7 @@ namespace MultiThreadScheduling
                       ThreadPriority threadPriority,
                       int initialDequeCapacity, 
                       uint seed, 
+                      uint id,
                       string name)
             : base(master)
         {
@@ -254,6 +256,8 @@ namespace MultiThreadScheduling
                 IsBackground = true,
                 Name = name
             };
+
+            Id = id;
         }
 
         /// <summary>
@@ -266,6 +270,11 @@ namespace MultiThreadScheduling
         /// The background thread that dispatches work items for this worker.
         /// </summary>
         private readonly Thread _thread;
+
+        /// <summary>
+        /// Integer ID assigned to this worker. 
+        /// </summary>
+        public uint Id { get; }
 
         /// <summary>
         /// Start the thread for this worker.  This method may only be called once.
@@ -344,12 +353,12 @@ namespace MultiThreadScheduling
 
                     try
                     {
-                        logger.BeginTask(whichQueue);
+                        logger.BeginTask(Id, whichQueue);
                         master.Executor.Execute(workItem);
                     }
                     finally
                     {
-                        logger.EndTask(whichQueue);
+                        logger.EndTask(Id, whichQueue);
                     }
                 }
             }

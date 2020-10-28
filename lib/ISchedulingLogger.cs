@@ -35,15 +35,17 @@ namespace MultiThreadScheduling
         /// <summary>
         /// Called when the scheduler is about to run a task item.
         /// </summary>
+        /// <param name="workerId">ID of the worker thread calling this method. </param>
         /// <param name="sourceQueue">Where the task item came from. </param>
-        void BeginTask(SourceQueue sourceQueue);
+        void BeginTask(uint workerId, SourceQueue sourceQueue);
 
         /// <summary>
         /// Called when the scheduler has finished running a task,
         /// even if it fails.
         /// </summary>
+        /// <param name="workerId">ID of the worker thread calling this method. </param>
         /// <param name="sourceQueue">Where the task item came from. </param>
-        void EndTask(SourceQueue sourceQueue);
+        void EndTask(uint workerId, SourceQueue sourceQueue);
 
         /// <summary>
         /// Called when an exception occurs in the worker's queue
