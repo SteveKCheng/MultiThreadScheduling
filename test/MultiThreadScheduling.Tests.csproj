@@ -25,6 +25,7 @@
     <Compile Include="BitMaskTests.cs" />
     <Compile Include="CpuAffinityTests.cs" />
     <Compile Include="CpuTopologyTests.cs" />
+    <Compile Include="MultiThreadTaskSchedulerTests.cs" />
   </ItemGroup>
 
 </Project>
