@@ -8,13 +8,13 @@ namespace MultiThreadScheduling
     /// Dummy implementation of logging for <see cref="MultiThreadTaskScheduler"/>
     /// that does nothing.
     /// </summary>
-    public class NullTaskSchedulerLogger : ITaskSchedulerLogger
+    public class NullSchedulingLogger : ISchedulingLogger
     {
-        public void BeginTask(ITaskSchedulerLogger.SourceQueue sourceQueue)
+        public void BeginTask(ISchedulingLogger.SourceQueue sourceQueue)
         {
         }
 
-        public void EndTask(ITaskSchedulerLogger.SourceQueue sourceQueue)
+        public void EndTask(ISchedulingLogger.SourceQueue sourceQueue)
         {
         }
 

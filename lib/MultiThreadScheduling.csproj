@@ -14,12 +14,12 @@
     <Compile Include="CpuAffinity.Linux.cs" />
     <Compile Include="CpuTopologyInfo.cs" />
     <Compile Include="CpuTopologyInfo.Windows.cs" />
-    <Compile Include="ITaskSchedulerLogger.cs" />
+    <Compile Include="ISchedulingLogger.cs" />
     <Compile Include="IWorkExecutor.cs" />
     <Compile Include="MultiThreadScheduler.cs" />
     <Compile Include="MultiThreadSchedulingSettings.cs" />
     <Compile Include="MultiThreadTaskScheduler.cs" />
-    <Compile Include="NullTaskSchedulerLogger.cs" />
+    <Compile Include="NullSchedulingLogger.cs" />
     <Compile Include="CpuTopologyInfo.Linux.cs" />
     <Compile Include="QuickRandomGenerator.cs" />
     <Compile Include="Worker.cs" />

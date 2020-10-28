@@ -150,7 +150,7 @@ namespace MultiThreadScheduling
         /// </summary>
         /// <param name="logger">User-supplied object to observe significant events
         /// in the scheduler. </param>
-        public MultiThreadTaskScheduler(ITaskSchedulerLogger? logger)
+        public MultiThreadTaskScheduler(ISchedulingLogger? logger)
         {
             SynchronizationContext = new SyncContextAdaptor(this);
             _scheduler = new MultiThreadScheduler<WorkItem, MultiThreadTaskScheduler>(this,

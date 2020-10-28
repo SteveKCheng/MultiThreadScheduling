@@ -8,7 +8,7 @@ namespace MultiThreadScheduling
     /// Receives notification when <see cref="MultiThreadTaskScheduler"/>
     /// does something significant, for diagnostic logging.
     /// </summary>
-    public interface ITaskSchedulerLogger
+    public interface ISchedulingLogger
     {
         /// <summary>
         /// Where a task item has been de-queued from.

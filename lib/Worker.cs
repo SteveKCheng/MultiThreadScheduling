@@ -317,7 +317,7 @@ namespace MultiThreadScheduling
                 SetThisWorkerForCurrentThread();
                 SynchronizationContext.SetSynchronizationContext(master.WorkerSyncContext);
 
-                ITaskSchedulerLogger.SourceQueue whichQueue;
+                ISchedulingLogger.SourceQueue whichQueue;
 
                 while (master.ShouldWorkerContinueRunning(ref _hasQuit))
                 {
@@ -326,15 +326,15 @@ namespace MultiThreadScheduling
                     if (_localQueue.TryPop(out workItem))
                     {
                         Interlocked.Decrement(ref _numLocalItems);
-                        whichQueue = ITaskSchedulerLogger.SourceQueue.Local;
+                        whichQueue = ISchedulingLogger.SourceQueue.Local;
                     }
                     else if (master.TryDequeueGlobalTaskItem(out workItem))
                     {
-                        whichQueue = ITaskSchedulerLogger.SourceQueue.Global;
+                        whichQueue = ISchedulingLogger.SourceQueue.Global;
                     }
                     else if (TryStealWorkItem(out workItem))
                     {
-                        whichQueue = ITaskSchedulerLogger.SourceQueue.Stolen;
+                        whichQueue = ISchedulingLogger.SourceQueue.Stolen;
                     }
                     else
                     {

@@ -297,9 +297,9 @@ namespace MultiThreadScheduling
         /// scheduler's lifetime. </param>
         public MultiThreadScheduler(TExecutor executor, 
                                     SynchronizationContext? syncContext,
-                                    ITaskSchedulerLogger? logger)
+                                    ISchedulingLogger? logger)
         {
-            Logger = logger ?? new NullTaskSchedulerLogger();
+            Logger = logger ?? new NullSchedulingLogger();
             Executor = executor;
             WorkerSyncContext = syncContext;
 
@@ -391,7 +391,7 @@ namespace MultiThreadScheduling
         /// Called to log significant events as this scheduler and its
         /// worker threads run.
         /// </summary>
-        public ITaskSchedulerLogger Logger { get; }
+        public ISchedulingLogger Logger { get; }
 
         #endregion
 
