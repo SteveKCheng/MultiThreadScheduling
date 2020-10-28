@@ -42,6 +42,9 @@ namespace MultiThreadScheduling.Tests
             Assert.Equal(subtasks.Length, logger.GlobalTasksCount);
 
             await taskScheduler.DisposeAsync();
+
+            Assert.InRange(logger.WorkersCount, 1, taskScheduler.SchedulingOptions.NumberOfThreads);
+            Assert.Equal(logger.WorkersStopped, logger.WorkersCount);
         }
 
         [Fact]
@@ -104,10 +107,14 @@ namespace MultiThreadScheduling.Tests
             private volatile int _localTasksCount = 0;
             private volatile int _globalTasksCount = 0;
             private volatile int _stolenTasksCount = 0;
+            private volatile int _workersCount = 0;
+            private volatile int _workersStopped = 0;
 
             public int LocalTasksCount => _localTasksCount;
             public int GlobalTasksCount => _globalTasksCount;
             public int StolenTasksCount => _stolenTasksCount;
+            public int WorkersCount => _workersCount;
+            public int WorkersStopped => _workersStopped;
 
             public void BeginTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue)
             {
@@ -135,6 +142,16 @@ namespace MultiThreadScheduling.Tests
 
             public void RaiseCriticalError(Exception exception)
             {
+            }
+
+            public void WorkerStarts(uint workerId)
+            {
+                Interlocked.Increment(ref _workersCount);
+            }
+
+            public void WorkerStops(uint workerId)
+            {
+                Interlocked.Increment(ref _workersStopped);
             }
         }
     }

@@ -33,6 +33,26 @@ namespace MultiThreadScheduling
         }
 
         /// <summary>
+        /// Called when a worker thread starts up.
+        /// </summary>
+        /// <param name="workerId">ID of the worker thread calling this method. </param>
+        /// <remarks>
+        /// This method should not throw an exception at all, or it will become
+        /// an unhandled exception.
+        /// </remarks>
+        void WorkerStarts(uint workerId);
+
+        /// <summary>
+        /// Called when a worker thread is about to stop.
+        /// </summary>
+        /// <param name="workerId">ID of the worker thread calling this method. </param>
+        /// <remarks>
+        /// This method should not throw an exception at all, or it will become
+        /// an unhandled exception.
+        /// </remarks>
+        void WorkerStops(uint workerId);
+
+        /// <summary>
         /// Called when the scheduler is about to run a task item.
         /// </summary>
         /// <param name="workerId">ID of the worker thread calling this method. </param>

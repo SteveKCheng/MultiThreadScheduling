@@ -319,6 +319,8 @@ namespace MultiThreadScheduling
             var logger = master.Logger;
             var workerId = this.Id;
 
+            logger.WorkerStarts(workerId);
+
             // Should not fail
             master.IncrementActiveThreadCount();
 
@@ -387,6 +389,8 @@ namespace MultiThreadScheduling
             {
                 logger.RaiseCriticalError(e);
             }
+
+            logger.WorkerStops(workerId);
         }
     }
 }

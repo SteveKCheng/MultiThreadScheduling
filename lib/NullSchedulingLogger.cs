@@ -25,5 +25,13 @@ namespace MultiThreadScheduling
         public void RaiseCriticalError(Exception exception)
         {
         }
+
+        public void WorkerStarts(uint workerId)
+        {
+        }
+
+        public void WorkerStops(uint workerId)
+        {
+        }
     }
 }
