@@ -48,7 +48,7 @@ namespace MultiThreadScheduling
             where TExecutor : IWorkExecutor<TWorkItem>
         {
             var worker = _ofCurrentThread;
-            return IsWorkerOwnedBy(worker, master) ? (Worker<TWorkItem, TExecutor>)worker! : null;
+            return IsWorkerOwnedBy(worker, master) ? Unsafe.As<Worker<TWorkItem, TExecutor>>(worker!) : null;
         }
 
         /// <summary>
