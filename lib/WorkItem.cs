@@ -15,32 +15,25 @@ namespace MultiThreadScheduling
     internal readonly struct WorkItem
     {
         /// <summary>
-        /// The task to execute as the work.
+        /// Stores either <see cref="Task"/> or <see cref="SendOrPostCallback"/>.
         /// </summary>
-        public readonly Task? Task;
+        internal readonly object Action;
 
         /// <summary>
-        /// Delegate passed to <see cref="SynchronizationContext"/> to run.
+        /// State object if <see cref="Action"/> is <see cref="SendOrPostCallback"/>.
         /// </summary>
-        public readonly SendOrPostCallback? SyncContextAction;
-
-        /// <summary>
-        /// State object to pass to <see cref="SyncContextAction"/>.
-        /// </summary>
-        public readonly object? SyncContextActionState;
+        internal readonly object? State;
 
         public WorkItem(Task task)
         {
-            Task = task;
-            SyncContextAction = null;
-            SyncContextActionState = null;
+            Action = task;
+            State = null;
         }
 
         public WorkItem(SendOrPostCallback action, object? state)
         {
-            Task = null;
-            SyncContextAction = action;
-            SyncContextActionState = state;
+            Action = action;
+            State = state;
         }
     }
 }

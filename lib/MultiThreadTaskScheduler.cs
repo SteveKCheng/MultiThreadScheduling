@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -52,10 +53,13 @@ namespace MultiThreadScheduling
 
         void IWorkExecutor<WorkItem>.Execute(WorkItem workItem)
         {
-            if (workItem.Task != null)
-                TryExecuteTask(workItem.Task);
+            var action = workItem.Action;
+
+            // A delegate type is sealed so maybe the type check is faster...
+            if (action is SendOrPostCallback syncContextAction)
+                syncContextAction(workItem.State);
             else
-                workItem.SyncContextAction!(workItem.SyncContextActionState);
+                TryExecuteTask(Unsafe.As<Task>(action));
         }
 
         /// <summary>
@@ -187,8 +191,8 @@ namespace MultiThreadScheduling
             // Explicit loop to avoid LINQ, for efficiency
             foreach (var workItem in _scheduler.GetScheduledItems())
             {
-                if (workItem.Task != null)
-                    yield return workItem.Task;
+                if (workItem.Action is Task task)
+                    yield return task;
             }
         }
 
