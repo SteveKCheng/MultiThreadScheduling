@@ -228,6 +228,7 @@ namespace MultiThreadScheduling
         /// but do not start it yet.
         /// </summary>
         /// <param name="master">The owner of this worker. </param>
+        /// <param name="threadPriority">Priority of the created worker thread. </param>
         /// <param name="initialDequeCapacity">Initial capacity for the Chase-Lev queue.
         /// Must be a power of two.
         /// </param>
@@ -236,7 +237,11 @@ namespace MultiThreadScheduling
         /// <param name="name">The name assigned to this worker for debugging.
         /// This name will become the (managed) name of the thread.
         /// </param>
-        public Worker(MultiThreadScheduler<TWorkItem, TExecutor> master, int initialDequeCapacity, uint seed, string name)
+        public Worker(MultiThreadScheduler<TWorkItem, TExecutor> master, 
+                      ThreadPriority threadPriority,
+                      int initialDequeCapacity, 
+                      uint seed, 
+                      string name)
             : base(master)
         {
             _master = master;
@@ -245,7 +250,7 @@ namespace MultiThreadScheduling
 
             _thread = new Thread(RunInThreadDelegate)
             {
-                Priority = ThreadPriority.BelowNormal,
+                Priority = threadPriority,
                 IsBackground = true,
                 Name = name
             };
@@ -268,6 +273,21 @@ namespace MultiThreadScheduling
         public void StartThread()
         {
             _thread.Start(this);
+        }
+
+        /// <summary>
+        /// Change the worker thread's priority to the operating system's scheduler.
+        /// </summary>
+        internal void ChangeThreadPriority(ThreadPriority threadPriority)
+        {
+            try
+            {
+                _thread.Priority = threadPriority;
+            }
+            catch (System.Threading.ThreadStateException)
+            {
+                // Ignore errors from setting priority on dead threads
+            }
         }
 
         /// <summary>

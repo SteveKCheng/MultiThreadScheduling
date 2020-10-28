@@ -51,7 +51,8 @@ namespace MultiThreadScheduling
         public MultiThreadCreationMode Mode { get; set; }
 
         /// <summary>
-        /// Specifies the priority of the worker threads.
+        /// Specifies the priority of the worker threads for the operating system's
+        /// scheduler.
         /// </summary>
         public ThreadPriority ThreadPriority { get; set; }
 

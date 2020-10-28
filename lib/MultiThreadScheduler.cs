@@ -142,11 +142,26 @@ namespace MultiThreadScheduling
         private static volatile int _nextWorkerId = 0;
 
         /// <summary>
+        /// Priority of the worker threads.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This variable may only be changed after locking <see cref="LockObject"/>.
+        /// </para>
+        /// </remarks>
+        private ThreadPriority _threadPriority = ThreadPriority.Normal;
+
+        /// <summary>
         /// Adjust the number of threads up or down.
         /// </summary>
         /// <param name="desiredNumThreads">The desired number of threads. Must 
         /// not be negative. </param>
-        private void SetNumberOfThreads(int desiredNumThreads)
+        /// <param name="threadPriority">The desired priority of the worker threads.
+        /// Existing threads' priority will be changed if different from the setting,
+        /// unless all threads are to be brought down, i.e. 
+        /// <paramref name="desiredNumThreads"/> is zero.
+        /// </param>
+        private void SetNumberOfThreads(int desiredNumThreads, ThreadPriority threadPriority)
         {
             Worker<TWorkItem, TExecutor>[] newWorkers;
             int workersCount;
@@ -159,6 +174,20 @@ namespace MultiThreadScheduling
                 // the latter are performed outside of the lock and so may race.
                 if (_disposalComplete != null && desiredNumThreads > 0)
                     return;
+
+                var oldWorkers = AllWorkers;
+
+                // Re-set priority of threads if different
+                if (threadPriority != _threadPriority && desiredNumThreads > 0)
+                {
+                    if (oldWorkers != null)
+                    {
+                        for (int i = 0; i < oldWorkers.Length; ++i)
+                            oldWorkers[i].ChangeThreadPriority(threadPriority);
+                    }
+
+                    _threadPriority = threadPriority;
+                }
 
                 int excessNumThreads = _totalNumThreads - desiredNumThreads;
                 if (excessNumThreads > 0)
@@ -175,7 +204,6 @@ namespace MultiThreadScheduling
                 newWorkers = new Worker<TWorkItem, TExecutor>[desiredNumThreads];
                 workersCount = 0;
 
-                var oldWorkers = AllWorkers;
                 if (oldWorkers != null)
                 {
                     for (int i = 0; i < oldWorkers.Length; ++i)
@@ -194,6 +222,7 @@ namespace MultiThreadScheduling
                 {
                     var workerId = (uint)Interlocked.Increment(ref _nextWorkerId);
                     newWorkers[i] = new Worker<TWorkItem, TExecutor>(this,
+                                        threadPriority,
                                         initialDequeCapacity: 256,
                                         seed: random.Next(),
                                         name: $"{nameof(MultiThreadTaskScheduler)} thread #{workerId}");
@@ -319,7 +348,7 @@ namespace MultiThreadScheduling
             if (numThreads == 0)
                 numThreads = 1;
 
-            SetNumberOfThreads(numThreads);
+            SetNumberOfThreads(numThreads, settings.ThreadPriority);
 
             // Publish new options, if SetNumberOfThreads does not fail
             SchedulingOptions = settings;
@@ -455,7 +484,7 @@ namespace MultiThreadScheduling
                 return disposalComplete.Task;
 
             // Request all worker threads to stop
-            SetNumberOfThreads(0);
+            SetNumberOfThreads(0, ThreadPriority.Normal /* ignored */);
 
             // Allow _activeNumThreads to be decreased all the way to -1.
             // When all worker threads have already stopped, this will clean up synchronously.
