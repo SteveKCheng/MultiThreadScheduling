@@ -17,6 +17,7 @@
     <Compile Include="ITaskSchedulerLogger.cs" />
     <Compile Include="IWorkExecutor.cs" />
     <Compile Include="MultiThreadScheduler.cs" />
+    <Compile Include="MultiThreadSchedulingSettings.cs" />
     <Compile Include="MultiThreadTaskScheduler.cs" />
     <Compile Include="NullTaskSchedulerLogger.cs" />
     <Compile Include="CpuTopologyInfo.Linux.cs" />
