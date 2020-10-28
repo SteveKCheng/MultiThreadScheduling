@@ -145,12 +145,35 @@ namespace MultiThreadScheduling
         /// </summary>
         public SynchronizationContext SynchronizationContext { get; }
 
+        /// <summary>
+        /// Prepare to schedule tasks, but does not start any worker threads yet.
+        /// </summary>
+        /// <param name="logger">User-supplied object to observe significant events
+        /// in the scheduler. </param>
         public MultiThreadTaskScheduler(ITaskSchedulerLogger? logger)
         {
             SynchronizationContext = new SyncContextAdaptor(this);
             _scheduler = new MultiThreadScheduler<WorkItem, MultiThreadTaskScheduler>(this,
                                                                                       SynchronizationContext,
                                                                                       logger);
+        }
+
+        /// <summary>
+        /// Prepare to schedule tasks, but does not start any worker threads yet.
+        /// No logging will be performed.
+        /// </summary>
+        public MultiThreadTaskScheduler()
+            : this(null)
+        {
+        }
+
+        /// <summary>
+        /// Adjust scheduling options.
+        /// </summary>
+        /// <param name="settings">The new scheduling options. </param>
+        public void SetSchedulingOptions(MultiThreadSchedulingSettings settings)
+        {
+            _scheduler.SetSchedulingOptions(settings);
         }
 
         #region Implementation of TaskScheduler
