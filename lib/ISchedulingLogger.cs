@@ -57,7 +57,8 @@ namespace MultiThreadScheduling
         /// </summary>
         /// <param name="workerId">ID of the worker thread calling this method. </param>
         /// <param name="sourceQueue">Where the task item came from. </param>
-        void BeginTask(uint workerId, SourceQueue sourceQueue);
+        /// <param name="workInfo">Some basic information about the work item. </param>
+        void BeginTask(uint workerId, SourceQueue sourceQueue, in WorkItemInfo workInfo);
 
         /// <summary>
         /// Called when the scheduler has finished running a task,
@@ -65,7 +66,9 @@ namespace MultiThreadScheduling
         /// </summary>
         /// <param name="workerId">ID of the worker thread calling this method. </param>
         /// <param name="sourceQueue">Where the task item came from. </param>
-        void EndTask(uint workerId, SourceQueue sourceQueue);
+        /// <param name="workInfo">The same information about the work item
+        /// passed in to <see cref="BeginTask"/>. </param>
+        void EndTask(uint workerId, SourceQueue sourceQueue, in WorkItemInfo workInfo);
 
         /// <summary>
         /// A worker thread is about to become idle because it (momentarily)

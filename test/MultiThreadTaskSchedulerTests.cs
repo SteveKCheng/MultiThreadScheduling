@@ -116,7 +116,7 @@ namespace MultiThreadScheduling.Tests
             public int WorkersCount => _workersCount;
             public int WorkersStopped => _workersStopped;
 
-            public void BeginTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue)
+            public void BeginTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue, in WorkItemInfo workInfo)
             {
                 switch (sourceQueue)
                 {
@@ -132,7 +132,7 @@ namespace MultiThreadScheduling.Tests
                 }
             }
 
-            public void EndTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue)
+            public void EndTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue, in WorkItemInfo workInfo)
             {
             }
 

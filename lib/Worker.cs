@@ -355,14 +355,16 @@ namespace MultiThreadScheduling
                         continue;
                     }
 
+                    var workInfo = master.Executor.GetWorkItemInfo(workItem);
+
                     try
                     {
-                        logger.BeginTask(workerId, whichQueue);
+                        logger.BeginTask(workerId, whichQueue, workInfo);
                         master.Executor.Execute(workItem);
                     }
                     finally
                     {
-                        logger.EndTask(workerId, whichQueue);
+                        logger.EndTask(workerId, whichQueue, workInfo);
                     }
                 }
             }

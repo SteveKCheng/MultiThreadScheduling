@@ -62,6 +62,14 @@ namespace MultiThreadScheduling
                 TryExecuteTask(Unsafe.As<Task>(action));
         }
 
+        WorkItemInfo IWorkExecutor<WorkItem>.GetWorkItemInfo(WorkItem workItem)
+        {
+            var action = workItem.Action;
+            int id = (action is SendOrPostCallback) ? -1 : Unsafe.As<Task>(action).Id;
+
+            return new WorkItemInfo(id, action, workItem.State);
+        }
+
         /// <summary>
         /// Adapt <see cref="MultiThreadTaskScheduler"/>
         /// into a <see cref="SynchronizationContext"/>.
