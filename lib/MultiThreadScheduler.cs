@@ -146,13 +146,20 @@ namespace MultiThreadScheduling
         /// </summary>
         /// <param name="desiredNumThreads">The desired number of threads. Must 
         /// not be negative. </param>
-        private void SetNumberOfThreadsInternal(int desiredNumThreads)
+        private void SetNumberOfThreads(int desiredNumThreads)
         {
             Worker<TWorkItem, TExecutor>[] newWorkers;
             int workersCount;
 
             lock (LockObject)
             {
+                // If the scheduler is already disposed, ignore any attempt to set a 
+                // positive number of threads.  This check is in addition to
+                // the error-throwing checks inside the public methods, because
+                // the latter are performed outside of the lock and so may race.
+                if (_disposalComplete != null && desiredNumThreads > 0)
+                    return;
+
                 int excessNumThreads = _totalNumThreads - desiredNumThreads;
                 if (excessNumThreads > 0)
                 {
@@ -217,22 +224,6 @@ namespace MultiThreadScheduling
         }
 
         /// <summary>
-        /// Adjust the number of threads up or down.
-        /// </summary>
-        /// <param name="desiredNumThreads">The desired number of threads. Must 
-        /// not be negative. </param>
-        public void SetNumberOfThreads(int desiredNumThreads)
-        {
-            if (_disposalComplete != null)
-                throw new ObjectDisposedException("Cannot set the number of threads for a disposed scheduler. ");
-
-            if (desiredNumThreads <= 0 || desiredNumThreads > Environment.ProcessorCount * 32)
-                throw new ArgumentOutOfRangeException(nameof(desiredNumThreads));
-
-            SetNumberOfThreadsInternal(desiredNumThreads);
-        }
-
-        /// <summary>
         /// Re-create the <see cref="AllWorkers"/> array after trimming
         /// excess workers.
         /// </summary>
@@ -269,8 +260,7 @@ namespace MultiThreadScheduling
         /// <summary>
         /// Prepare to accept tasks.  No worker threads are started initially.
         /// </summary>
-        /// <param name="executor">
-        /// Object or state for processing work items.
+        /// <param name="executor">Object or state for processing work items.
         /// </param>
         /// <param name="syncContext">The synchronization context to set on all
         /// worker threads. </param>
@@ -283,7 +273,69 @@ namespace MultiThreadScheduling
             Logger = logger ?? new NullTaskSchedulerLogger();
             Executor = executor;
             WorkerSyncContext = syncContext;
+
+            // Initial settings
+            SchedulingOptions = new MultiThreadSchedulingSettings
+            {
+                Mode = MultiThreadCreationMode.CustomNumberOfThreads,
+                ThreadPriority = ThreadPriority.Normal,
+                NumberOfThreads = 0
+            };
         }
+
+        /// <summary>
+        /// Adjust scheduling options.
+        /// </summary>
+        /// <param name="settings">The new scheduling options. </param>
+        public void SetSchedulingOptions(MultiThreadSchedulingSettings settings)
+        {
+            if (_disposalComplete != null)
+                throw new ObjectDisposedException("Cannot set the number of threads for a disposed scheduler. ");
+
+            int numThreads;
+
+            if ((settings.Mode & MultiThreadCreationMode.OneThreadPerLogicalCpu) != 0)
+            {
+                // FIXME filter this list based on process CPU affinity
+                var cpuInfo = CpuTopologyInfo.GetList();
+
+                if ((settings.Mode & MultiThreadCreationMode.OneThreadPerCpuCore) == MultiThreadCreationMode.OneThreadPerCpuCore)
+                    numThreads = CpuTopologyInfo.CountNumberOfCores(cpuInfo);
+                else
+                    numThreads = cpuInfo.Length;
+            }
+            else
+            {
+                numThreads = settings.NumberOfThreads;
+                if (numThreads <= 0)
+                    throw new ArgumentOutOfRangeException($"{nameof(MultiThreadSchedulingSettings)}.{nameof(MultiThreadSchedulingSettings.NumberOfThreads)} is out of range: {numThreads}");
+            }
+
+            // Cap at CPU quota, if requested.
+            // FIXME For dynamic updates to CPU quota we should read the quota ourselves
+            if ((settings.Mode & MultiThreadCreationMode.CapThreadsAtCpuQuota) != 0)
+                numThreads = Math.Max(numThreads, Environment.ProcessorCount);
+
+            if (numThreads == 0)
+                numThreads = 1;
+
+            SetNumberOfThreads(numThreads);
+
+            // Publish new options, if SetNumberOfThreads does not fail
+            SchedulingOptions = settings;
+        }
+
+        /// <summary>
+        /// The scheduling options that should currently be in effect.
+        /// </summary>
+        /// <remarks>
+        /// This data is not protected by a lock, and in case <see cref="SetSchedulingOptions"/>
+        /// fails, it may not accurately reflect the current state of this scheduler.
+        /// The data is advisory so that the user of this class can re-use
+        /// the existing settings when adjusting this scheduler.  It is recommended
+        /// that the user not adjust the scheduler concurrently from multiple threads.
+        /// </remarks>
+        public MultiThreadSchedulingSettings SchedulingOptions { get; private set; }
 
         #endregion
 
@@ -403,7 +455,7 @@ namespace MultiThreadScheduling
                 return disposalComplete.Task;
 
             // Request all worker threads to stop
-            SetNumberOfThreadsInternal(0);
+            SetNumberOfThreads(0);
 
             // Allow _activeNumThreads to be decreased all the way to -1.
             // When all worker threads have already stopped, this will clean up synchronously.
