@@ -175,6 +175,12 @@ namespace MultiThreadScheduling
         public SynchronizationContext SynchronizationContext { get; }
 
         /// <summary>
+        /// Called to log significant events as this scheduler and its
+        /// worker threads run.
+        /// </summary>
+        public ISchedulingLogger Logger => _scheduler.Logger;
+
+        /// <summary>
         /// Prepare to schedule tasks, but does not start any worker threads yet.
         /// </summary>
         /// <param name="logger">User-supplied object to observe significant events
