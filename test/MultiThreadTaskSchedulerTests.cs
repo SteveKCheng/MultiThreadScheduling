@@ -70,7 +70,7 @@ namespace MultiThreadScheduling.Tests
                 {
                     var random = new Random();
                     var subtasks = new Task[numChildTasks];
-                    var threadId = Thread.CurrentThread.ManagedThreadId;
+                    var threadId = Environment.CurrentManagedThreadId;
 
                     for (int j = 0; j < subtasks.Length; ++j)
                     {
@@ -80,7 +80,7 @@ namespace MultiThreadScheduling.Tests
                         // This child task goes to the local queue
                         subtasks[j] = Task.Factory.StartNew(() =>
                         {
-                            if (Thread.CurrentThread.ManagedThreadId != threadId)
+                            if (Environment.CurrentManagedThreadId != threadId)
                                 Interlocked.Increment(ref stolenTasksCount);
 
                             // Pretend to be doing work.
@@ -102,6 +102,70 @@ namespace MultiThreadScheduling.Tests
             await taskScheduler.DisposeAsync();
         }
 
+        [Fact]
+        public async Task StressTaskScheduling()
+        {
+            var logger = new CountTasksLogger();
+            var taskScheduler = new MultiThreadTaskScheduler(logger);
+            taskScheduler.SetSchedulingOptions(new MultiThreadSchedulingSettings
+            {
+                Mode = MultiThreadCreationMode.OneThreadPerCpuCore,
+                ThreadPriority = System.Threading.ThreadPriority.BelowNormal
+            });
+
+            var numThreads = taskScheduler.SchedulingOptions.NumberOfThreads;
+
+            var tasks = new Task[numThreads * 50];
+            int overflowCount = 0;
+
+            // Deliberately make the work unbalanced
+            int GetNumChildTasks(int i) => 1000 + (i * 800) / numThreads;
+
+            int totalChildTasks = Enumerable.Range(0, tasks.Length).Select(GetNumChildTasks).Sum();
+
+            for (int i = 0; i < tasks.Length; ++i)
+            {
+                var iCopy = i;
+
+                // This task goes to the global queue
+                tasks[i] = TaskExtensions.Unwrap(Task.Factory.StartNew(async () =>
+                {
+                    var subtasks = new Task<(int, int)>[GetNumChildTasks(iCopy)];
+                    var threadId = Environment.CurrentManagedThreadId;
+
+                    for (int j = 0; j < subtasks.Length; ++j)
+                    {
+                        var jCopy = j;
+
+                        // This child task goes to the local queue unless the local
+                        // queue overflows
+                        subtasks[j] = Task.Factory.StartNew(() =>
+                        {
+                            if (Environment.CurrentManagedThreadId != threadId)
+                                Interlocked.Increment(ref overflowCount);
+
+                            return (iCopy, jCopy);
+                        });
+                    }
+
+                    await Task.WhenAll(subtasks);
+
+                    for (int j = 0; j < subtasks.Length; ++j)
+                        Assert.Equal((iCopy, j), subtasks[j].Result);
+
+                }, CancellationToken.None, TaskCreationOptions.None, taskScheduler));
+            }
+
+            await Task.WhenAll(tasks);
+
+            Assert.InRange(overflowCount, logger.StolenTasksCount, int.MaxValue);
+            Assert.Equal(tasks.Length + totalChildTasks, logger.LocalEnqueuesCount + logger.GlobalEnqueuesCount);
+            Assert.Equal(tasks.Length + totalChildTasks, logger.LocalTasksCount + logger.GlobalTasksCount +
+                                                         logger.StolenTasksCount);
+
+            await taskScheduler.DisposeAsync();
+        }
+
         private class CountTasksLogger : ISchedulingLogger
         {
             private volatile int _localTasksCount = 0;
@@ -109,12 +173,16 @@ namespace MultiThreadScheduling.Tests
             private volatile int _stolenTasksCount = 0;
             private volatile int _workersCount = 0;
             private volatile int _workersStopped = 0;
+            private volatile int _localEnqueuesCount = 0;
+            private volatile int _globalEnqueuesCount = 0;
 
             public int LocalTasksCount => _localTasksCount;
             public int GlobalTasksCount => _globalTasksCount;
             public int StolenTasksCount => _stolenTasksCount;
             public int WorkersCount => _workersCount;
             public int WorkersStopped => _workersStopped;
+            public int LocalEnqueuesCount => _localEnqueuesCount;
+            public int GlobalEnqueuesCount => _globalEnqueuesCount;
 
             public void BeginTask(uint workerId, WorkSourceQueue sourceQueue, in WorkItemInfo workInfo)
             {
@@ -141,6 +209,10 @@ namespace MultiThreadScheduling.Tests
 
             public void EnqueueWork(uint? workerId, in WorkItemInfo workInfo)
             {
+                if (workerId != null)
+                    Interlocked.Increment(ref _localEnqueuesCount);
+                else
+                    Interlocked.Increment(ref _globalEnqueuesCount);
             }
 
             public void Idle(uint workerId)
