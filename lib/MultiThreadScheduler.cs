@@ -367,6 +367,24 @@ namespace MultiThreadScheduling
         /// </remarks>
         public MultiThreadSchedulingSettings SchedulingOptions { get; private set; }
 
+        /// <summary>
+        /// Get the number of work threads currently active, for monitoring.
+        /// </summary>
+        /// <remarks>
+        /// This number is not guaranteed to be consistent with the other
+        /// operations that may be performed on this instance, because
+        /// access to this variable is not mediated by a lock.  However, this 
+        /// "eventually consistent" view suffices for monitoring.
+        /// </remarks>
+        public int NumberOfActiveThreads
+        {
+            get
+            {
+                var bias = (_disposalComplete != null) ? 1 : 0;
+                return _activeNumThreads + bias;
+            }
+        }
+
         #endregion
 
         #region User-customizable state objects

@@ -216,6 +216,17 @@ namespace MultiThreadScheduling
         /// </summary>
         public MultiThreadSchedulingSettings SchedulingOptions => _scheduler.SchedulingOptions;
 
+        /// <summary>
+        /// Get the number of work threads currently active, for monitoring.
+        /// </summary>
+        /// <remarks>
+        /// This number is not guaranteed to be consistent with the other
+        /// operations that may be performed on this instance, because
+        /// access to this variable is not mediated by a lock.  However, this 
+        /// "eventually consistent" view suffices for monitoring.
+        /// </remarks>
+        public int NumberOfActiveThreads => _scheduler.NumberOfActiveThreads;
+
         #region Implementation of TaskScheduler
 
         /// <summary>
