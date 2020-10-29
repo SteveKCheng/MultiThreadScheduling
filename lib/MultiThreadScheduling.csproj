@@ -8,9 +8,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <Authors>Steve Cheng</Authors>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -45,6 +50,13 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../LICENSE.txt">
+      <Pack>true</Pack>
+      <PackagePath>$(PackageLicenseFile)</PackagePath>
+    </Content>
   </ItemGroup>
 
 </Project>
