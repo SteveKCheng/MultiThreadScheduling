@@ -100,7 +100,9 @@ namespace MultiThreadScheduling
         /// the process may shut down because the exception may be unhandled.
         /// </para>
         /// </remarks>
+        /// <param name="workerId">ID of the worker thread that failed,
+        /// or null if the failure is not specific to one worker thread. </param>
         /// <param name="exception">The exception being thrown. </param>
-        void RaiseCriticalError(Exception exception);
+        void RaiseCriticalError(uint? workerId, Exception exception);
     }
 }

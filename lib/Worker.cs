@@ -371,7 +371,7 @@ namespace MultiThreadScheduling
             }
             catch (Exception e)
             {
-                logger.RaiseCriticalError(e);
+                logger.RaiseCriticalError(workerId, e);
             }
 
             try
@@ -381,16 +381,16 @@ namespace MultiThreadScheduling
             }
             catch (Exception e)
             {
-                logger.RaiseCriticalError(e);
+                logger.RaiseCriticalError(workerId, e);
             }
 
             try
             {
-                master.DecrementActiveThreadCount();
+                master.DecrementActiveThreadCount(workerId);
             }
             catch (Exception e)
             {
-                logger.RaiseCriticalError(e);
+                logger.RaiseCriticalError(workerId, e);
             }
 
             logger.WorkerStops(workerId);

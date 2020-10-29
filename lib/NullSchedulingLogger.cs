@@ -27,7 +27,7 @@ namespace MultiThreadScheduling
         {
         }
 
-        public void RaiseCriticalError(Exception exception)
+        public void RaiseCriticalError(uint? workerId, Exception exception)
         {
         }
 

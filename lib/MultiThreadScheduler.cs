@@ -237,13 +237,15 @@ namespace MultiThreadScheduling
             // Can start threads outside the lock once all instance data has been published
             for (int i = workersCount; i < desiredNumThreads; ++i)
             {
+                var worker = newWorkers[i];
+
                 try
                 {
-                    newWorkers[i].StartThread();
+                    worker.StartThread();
                 }
                 catch (Exception e)
                 {
-                    Logger.RaiseCriticalError(e);
+                    Logger.RaiseCriticalError(worker.Id, e);
 
                     // If one thread fails to start do not try to start any more.
                     // The workers act the same way so starting more threads will likely
@@ -506,7 +508,7 @@ namespace MultiThreadScheduling
 
             // Allow _activeNumThreads to be decreased all the way to -1.
             // When all worker threads have already stopped, this will clean up synchronously.
-            DecrementActiveThreadCount();
+            DecrementActiveThreadCount(null);
 
             return newDisposalComplete.Task;
         }
@@ -547,7 +549,7 @@ namespace MultiThreadScheduling
         /// Decrement the count of active worker threads, and finish any pending disposal when
         /// there are no more threads.
         /// </summary>
-        internal void DecrementActiveThreadCount()
+        internal void DecrementActiveThreadCount(uint? workerId)
         {
             if (Interlocked.Decrement(ref _activeNumThreads) == -1)
             {
@@ -557,7 +559,7 @@ namespace MultiThreadScheduling
                 }
                 catch (Exception e)
                 {
-                    Logger.RaiseCriticalError(e);
+                    Logger.RaiseCriticalError(workerId, e);
                 }
 
                 // When _activeNumThreads == -1, _disposalComplete should be non-null
