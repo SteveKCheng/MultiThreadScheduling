@@ -11,13 +11,13 @@ namespace MultiThreadScheduling
     public class NullSchedulingLogger : ISchedulingLogger
     {
         public void BeginTask(uint workerId, 
-                              ISchedulingLogger.SourceQueue sourceQueue, 
+                              WorkSourceQueue sourceQueue, 
                               in WorkItemInfo workInfo)
         {
         }
 
         public void EndTask(uint workerId, 
-                            ISchedulingLogger.SourceQueue sourceQueue, 
+                            WorkSourceQueue sourceQueue, 
                             in WorkItemInfo workInfo,
                             WorkExecutionStatus workStatus)
         {

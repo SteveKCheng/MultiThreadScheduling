@@ -116,24 +116,24 @@ namespace MultiThreadScheduling.Tests
             public int WorkersCount => _workersCount;
             public int WorkersStopped => _workersStopped;
 
-            public void BeginTask(uint workerId, ISchedulingLogger.SourceQueue sourceQueue, in WorkItemInfo workInfo)
+            public void BeginTask(uint workerId, WorkSourceQueue sourceQueue, in WorkItemInfo workInfo)
             {
                 switch (sourceQueue)
                 {
-                    case ISchedulingLogger.SourceQueue.Local:
+                    case WorkSourceQueue.Local:
                         Interlocked.Increment(ref _localTasksCount);
                         break;
-                    case ISchedulingLogger.SourceQueue.Global:
+                    case WorkSourceQueue.Global:
                         Interlocked.Increment(ref _globalTasksCount);
                         break;
-                    case ISchedulingLogger.SourceQueue.Stolen:
+                    case WorkSourceQueue.Stolen:
                         Interlocked.Increment(ref _stolenTasksCount);
                         break;
                 }
             }
 
             public void EndTask(uint workerId, 
-                                ISchedulingLogger.SourceQueue sourceQueue, 
+                                WorkSourceQueue sourceQueue, 
                                 in WorkItemInfo workInfo,
                                 WorkExecutionStatus workStatus)
             {

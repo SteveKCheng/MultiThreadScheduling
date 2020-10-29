@@ -5,33 +5,33 @@ using System.Text;
 namespace MultiThreadScheduling
 {
     /// <summary>
+    /// Indicates where a task item has been de-queued from, for logging.
+    /// </summary>
+    public enum WorkSourceQueue
+    {
+        /// <summary>
+        /// The local queue to a worker thread.
+        /// </summary>
+        Local,
+
+        /// <summary>
+        /// The global queue shared by all worker threads.
+        /// </summary>
+        Global,
+
+        /// <summary>
+        /// The local queue from another worker thread that is
+        /// not the current worker thread.
+        /// </summary>
+        Stolen
+    }
+
+    /// <summary>
     /// Receives notification when <see cref="MultiThreadTaskScheduler"/>
     /// does something significant, for diagnostic logging.
     /// </summary>
     public interface ISchedulingLogger
     {
-        /// <summary>
-        /// Where a task item has been de-queued from.
-        /// </summary>
-        public enum SourceQueue
-        {
-            /// <summary>
-            /// The local queue to a worker thread.
-            /// </summary>
-            Local,
-
-            /// <summary>
-            /// The global queue shared by all worker threads.
-            /// </summary>
-            Global,
-
-            /// <summary>
-            /// The local queue from another worker thread that is
-            /// not the current worker thread.
-            /// </summary>
-            Stolen
-        }
-
         /// <summary>
         /// Called when a worker thread starts up.
         /// </summary>
@@ -58,7 +58,7 @@ namespace MultiThreadScheduling
         /// <param name="workerId">ID of the worker thread calling this method. </param>
         /// <param name="sourceQueue">Where the task item came from. </param>
         /// <param name="workInfo">Some basic information about the work item. </param>
-        void BeginTask(uint workerId, SourceQueue sourceQueue, in WorkItemInfo workInfo);
+        void BeginTask(uint workerId, WorkSourceQueue sourceQueue, in WorkItemInfo workInfo);
 
         /// <summary>
         /// Called when the scheduler has finished running a task,
@@ -70,7 +70,7 @@ namespace MultiThreadScheduling
         /// passed in to <see cref="BeginTask"/>. </param>
         /// <param name="workStatus">Status after having run the work item. </param>
         void EndTask(uint workerId, 
-                     SourceQueue sourceQueue, 
+                     WorkSourceQueue sourceQueue, 
                      in WorkItemInfo workInfo, 
                      WorkExecutionStatus workStatus);
 
