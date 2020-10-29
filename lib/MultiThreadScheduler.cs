@@ -335,6 +335,8 @@ namespace MultiThreadScheduling
                     numThreads = CpuTopologyInfo.CountNumberOfCores(cpuInfo);
                 else
                     numThreads = cpuInfo.Length;
+
+                settings.NumberOfThreads = numThreads;
             }
             else
             {

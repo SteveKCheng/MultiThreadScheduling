@@ -60,11 +60,18 @@ namespace MultiThreadScheduling
         /// Sets the number of worker threads explicitly.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// This member is consulted when <see cref="Mode"/> is specified
         /// with <see cref="MultiThreadCreationMode.CustomNumberOfThreads"/>,
-        /// and ignored otherwise.  When not ignored, this number must be 
-        /// positive, and may not exceed some implementation-defined multiple
-        /// of the total number of CPUs.
+        /// in which case it must be a positive number, and may not exceed 
+        /// some implementation-defined multiple of the total number of CPUs.
+        /// </para>
+        /// <para>
+        /// When <see cref="Mode"/> is specified to automatically determine
+        /// the number of threads, this member is ignored on input.  But
+        /// this member does get set on output to the determined number of
+        /// threads in <see cref="MultiThreadScheduler{TWorkItem, TExecutor}.SchedulingOptions"/>.
+        /// </para>
         /// </remarks>
         public int NumberOfThreads { get; set; }
     }
