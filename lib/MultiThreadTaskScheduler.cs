@@ -164,7 +164,12 @@ namespace MultiThreadScheduling
             public override void Post(SendOrPostCallback d, object? state)
             {
                 if (d == null) throw new ArgumentNullException(nameof(d));
-                _taskScheduler._scheduler.EnqueueItem(new WorkItem(d, state), preferLocal: true);
+
+                var workInfo = new WorkItemInfo(0, d, state);
+                _taskScheduler._scheduler.EnqueueItem(new WorkItem(d, state),
+                                                      preferLocal: true,
+                                                      workInfo: workInfo);
+
             }
         }
 
@@ -265,7 +270,8 @@ namespace MultiThreadScheduling
             }
 
             bool preferLocal = ((taskOptions & TaskCreationOptions.PreferFairness) == 0);
-            _scheduler.EnqueueItem(workItem, preferLocal);
+            var workInfo = new WorkItemInfo(task.Id, task);
+            _scheduler.EnqueueItem(workItem, preferLocal, workInfo);
         }
 
         /// <summary>

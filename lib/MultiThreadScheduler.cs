@@ -634,17 +634,28 @@ namespace MultiThreadScheduling
             return items;
         }
 
-        public void EnqueueItem(TWorkItem workItem, bool preferLocal)
+        public void EnqueueItem(TWorkItem workItem, bool preferLocal, in WorkItemInfo workInfo)
         {
             if (preferLocal)
             {
                 var worker = Worker<TWorkItem, TExecutor>.TryGetCurrentWorkerFor(this);
                 if (worker != null && worker.TryLocalPush(workItem))
+                {
+                    Logger.EnqueueWork(worker.Id, workInfo);
                     return;
+                }
             }
 
             this._globalQueue.Enqueue(workItem);
-            this._semaphore.Release();
+
+            try
+            {
+                Logger.EnqueueWork(null, workInfo);
+            }
+            finally
+            {
+                this._semaphore.Release();
+            }
         }
 
         #endregion

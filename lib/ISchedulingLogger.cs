@@ -53,6 +53,18 @@ namespace MultiThreadScheduling
         void WorkerStops(uint workerId);
 
         /// <summary>
+        /// Called when a work item is put into the scheduler.
+        /// </summary>
+        /// <param name="workerId">If a worker thread is calling this method
+        /// to push to the local queue, this argument gives its ID. 
+        /// Otherwise this argument is null and the work item is being
+        /// pushed to the global queue.
+        /// </param>
+        /// <param name="workInfo">Summary information about the work item.
+        /// </param>
+        void EnqueueWork(uint? workerId, in WorkItemInfo workInfo);
+
+        /// <summary>
         /// Called when the scheduler is about to run a task item.
         /// </summary>
         /// <param name="workerId">ID of the worker thread calling this method. </param>

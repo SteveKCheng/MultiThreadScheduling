@@ -139,6 +139,10 @@ namespace MultiThreadScheduling.Tests
             {
             }
 
+            public void EnqueueWork(uint? workerId, in WorkItemInfo workInfo)
+            {
+            }
+
             public void Idle(uint workerId)
             {
             }
