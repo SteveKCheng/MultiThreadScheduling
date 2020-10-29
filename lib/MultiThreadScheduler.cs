@@ -537,7 +537,7 @@ namespace MultiThreadScheduling
         /// <summary>
         /// Take a work item off the global queue if one exists.
         /// </summary>
-        internal bool TryDequeueGlobalTaskItem(out TWorkItem workItem) => _globalQueue.TryDequeue(out workItem);
+        internal bool TryDequeueGlobalTaskItem(out TWorkItem workItem) => _globalQueue.TryDequeue(out workItem!);
 
         /// <summary>
         /// Increment the count of active worker threads.
