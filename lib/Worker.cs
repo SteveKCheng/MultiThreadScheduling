@@ -44,6 +44,7 @@ namespace MultiThreadScheduling
         /// <summary>
         /// If the current thread is a worker thread from the given scheduler, return
         /// the worker object; otherwise null.
+        /// </summary>
         public static Worker<TWorkItem, TExecutor>? TryGetCurrentWorkerFor<TWorkItem, TExecutor>(MultiThreadScheduler<TWorkItem, TExecutor> master)
             where TExecutor : IWorkExecutor<TWorkItem>
         {
@@ -71,7 +72,7 @@ namespace MultiThreadScheduling
     }
 
     /// <summary>
-    /// One of the workers in <see cref="MultiThreadScheduler"/>,
+    /// One of the workers in <see cref="MultiThreadScheduler{TWorkItem, TExecutor}"/>,
     /// managing the thread and the local set of tasks.
     /// </summary>
     internal sealed class Worker<TWorkItem, TExecutor> : Worker where TExecutor: IWorkExecutor<TWorkItem>

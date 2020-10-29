@@ -7,7 +7,6 @@ namespace MultiThreadScheduling
     /// <summary>
     /// Implementation of the Chase-Lev lock-free queue for work-stealing task scheduling.
     /// </summary>
-    /// </summary>
     /// <typeparam name="TItem">The element type of the items. </typeparam>
     /// <remarks>
     /// <para>
@@ -59,7 +58,7 @@ namespace MultiThreadScheduling
     /// </item>
     /// <item>
     /// <description>
-    /// In .NET, <see cref="Interlocked.CompareExchange"/> is already sequentially
+    /// In .NET, <see cref="Interlocked.CompareExchange(ref int, int, int)"/> is already sequentially
     /// consistent.  That means it is inefficient on ARM but there is nothing
     /// we can do about that.  The second paper in fact points out that full sequential
     /// consistency is too strong but also that there is no way to express
@@ -67,20 +66,25 @@ namespace MultiThreadScheduling
     /// </description>
     /// </item>
     /// <item>
+    /// <description>
     /// The sequentially-consistent fence in C11 is replaced by 
     /// <see cref="Interlocked.MemoryBarrier"/>.  This is faithful translation
     /// though, again, as the second paper points out, at certain points
     /// in the code such a barrier is stronger than necessary.  On x86,
     /// such a fence compiles to a dummy interlocked bitwise-or on the stack pointer.
+    /// </description>
     /// </item>
     /// <item>
+    /// <description>
     /// There is no equivalent of the C11 release fence in .NET. 
-    /// Fortunately, it is good enough to use <see cref="Volatile.Write"/> since
+    /// Fortunately, it is good enough to use <see cref="Volatile.Write(ref int, int)"/> since
     /// the underlying memory barrier operations in .NET are not tied
     /// to specific variables like in C11.  (Hardware generally does not have
     /// fences tied to specific memory locations; presumably the very weak memory model
     /// of C11 facilitate re-ordering of atomic operations by optimizing compilers.)
+    /// </description>
     /// </item>
+    /// </list>
     /// </remarks>
     public struct ChaseLevQueue<TItem>
     {

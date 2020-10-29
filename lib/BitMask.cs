@@ -108,12 +108,12 @@ namespace MultiThreadScheduling
         public ref ulong GetPinnableReference() => ref _buffer.GetPinnableReference();
 
         /// <summary>
-        /// Find the position of the next bit, on or after <see cref="startIndex"/>,
+        /// Find the position of the next bit, on or after <paramref name="startIndex"/>,
         /// that is set on.
         /// </summary>
         /// <param name="startIndex">Index of the bit to start scanning from. </param>
         /// <returns>Position of the next bit that is set, or -1 if all the bits
-        /// from <see cref="startIndex"/> onwards are off.</returns>
+        /// from <paramref name="startIndex"/> onwards are off.</returns>
         public int GetIndexOfNextOnBit(int startIndex)
         {
             if (startIndex < 0)

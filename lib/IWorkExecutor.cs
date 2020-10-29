@@ -9,7 +9,7 @@ namespace MultiThreadScheduling
     /// or otherwise any state that is needed to interpret or process the work item.
     /// </summary>
     /// <typeparam name="TWorkItem">
-    /// Type of the abstract message that may be queued into <see cref="MultiThreadScheduler{TWorkItem}"/>
+    /// Type of the abstract message that may be queued into <see cref="MultiThreadScheduler{TWorkItem, TExecutor}"/>
     /// and gets processed by one of its worker threads.
     /// </typeparam>
     public interface IWorkExecutor<in TWorkItem>

@@ -26,7 +26,7 @@ namespace MultiThreadScheduling
     /// </para>
     /// </remarks>
     /// <typeparam name="TWorkItem">
-    /// Type of the abstract message that may be queued into <see cref="MultiThreadScheduler{TWorkItem}"/>
+    /// Type of the abstract message that may be queued into <see cref="MultiThreadScheduler{TWorkItem, TExecutor}"/>
     /// and gets processed by one of its worker threads.
     /// </typeparam>
     /// <typeparam name="TExecutor">
@@ -114,7 +114,7 @@ namespace MultiThreadScheduling
         /// The following invariant is kept when <see cref="LockObject"/>
         /// is not locked: <see cref="_totalNumThreads"/> is equal
         /// to the length of <see cref="AllWorkers"/> minus the number
-        /// of workers whose property <see cref="Worker.HasQuit"/>
+        /// of workers whose property <see cref="Worker{TWorkItem, TExecutor}.HasQuit" />
         /// is true.
         /// </para>
         /// <para>
@@ -486,7 +486,7 @@ namespace MultiThreadScheduling
         /// <returns>Task that completes only when disposal is complete.
         /// If this method gets called (concurrently) multiple times, their returned
         /// Task objects all complete only when the disposal completes.  The returned
-        /// Task should not be synchronously waited, via <see cref="Task.Wait"/>,
+        /// Task should not be synchronously waited, via <see cref="Task.Wait()"/>,
         /// from a worker thread, or disposal will deadlock.
         /// </returns>
         public Task DisposeAsync()
@@ -574,7 +574,7 @@ namespace MultiThreadScheduling
         /// has been adjusted downwards.
         /// </summary>
         /// <param name="hasQuit">Backing field for the worker's
-        /// <see cref="Worker.HasQuit"/> property.  The property 
+        /// <see cref="Worker{TWorkItem, TExecutor}.HasQuit"/> property.  The property 
         /// must be modified by this method because it does so under a lock.
         /// </param>
         /// <returns>True if the worker should continue running; false
@@ -636,6 +636,16 @@ namespace MultiThreadScheduling
             return items;
         }
 
+        /// <summary>
+        /// Add a work item to execute eventually.
+        /// </summary>
+        /// <param name="workItem">The work item to add. </param>
+        /// <param name="preferLocal">True to add to the local queue, if the caller
+        /// is executing in a worker thread; false to always add to the global queue.
+        /// </param>
+        /// <param name="workInfo">Summary information about the work item,
+        /// for logging only.
+        /// </param>
         public void EnqueueItem(TWorkItem workItem, bool preferLocal, in WorkItemInfo workInfo)
         {
             if (preferLocal)

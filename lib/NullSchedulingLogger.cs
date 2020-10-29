@@ -10,12 +10,14 @@ namespace MultiThreadScheduling
     /// </summary>
     public class NullSchedulingLogger : ISchedulingLogger
     {
+        /// <inheritdoc/>
         public void BeginTask(uint workerId, 
                               WorkSourceQueue sourceQueue, 
                               in WorkItemInfo workInfo)
         {
         }
 
+        /// <inheritdoc/>
         public void EndTask(uint workerId, 
                             WorkSourceQueue sourceQueue, 
                             in WorkItemInfo workInfo,
@@ -23,22 +25,27 @@ namespace MultiThreadScheduling
         {
         }
 
+        /// <inheritdoc/>
         public void EnqueueWork(uint? workerId, in WorkItemInfo workInfo)
         {
         }
 
+        /// <inheritdoc/>
         public void Idle(uint workerId)
         {
         }
 
+        /// <inheritdoc/>
         public void RaiseCriticalError(uint? workerId, Exception exception)
         {
         }
 
+        /// <inheritdoc/>
         public void WorkerStarts(uint workerId)
         {
         }
 
+        /// <inheritdoc/>
         public void WorkerStops(uint workerId)
         {
         }
