@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace MultiThreadScheduling
@@ -91,6 +92,8 @@ namespace MultiThreadScheduling
         /// Name attached to this worker to aid debugging.
         /// </summary>
         public string Name => _thread.Name!;
+
+        private ThreadPriority _threadPriority;
 
         /// <summary>
         /// Flag to signal to the master that this worker has voluntarily stopped
@@ -253,10 +256,14 @@ namespace MultiThreadScheduling
 
             _thread = new Thread(RunInThreadDelegate)
             {
-                Priority = threadPriority,
                 IsBackground = true,
                 Name = name
             };
+
+            _threadPriority = threadPriority;
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                _thread.Priority = threadPriority;
 
             Id = id;
         }
@@ -290,13 +297,20 @@ namespace MultiThreadScheduling
         /// </summary>
         internal void ChangeThreadPriority(ThreadPriority threadPriority)
         {
-            try
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                _thread.Priority = threadPriority;
+                try
+                {
+                    _thread.Priority = threadPriority;
+                }
+                catch (System.Threading.ThreadStateException)
+                {
+                    // Ignore errors from setting priority on dead threads
+                }
             }
-            catch (System.Threading.ThreadStateException)
+            else
             {
-                // Ignore errors from setting priority on dead threads
+                _threadPriority = threadPriority;
             }
         }
 
@@ -319,6 +333,18 @@ namespace MultiThreadScheduling
             var master = this._master;
             var logger = master.Logger;
             var workerId = this.Id;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                try
+                {
+                    CpuAffinity.SetCurrentThreadPriority(_threadPriority);
+                }
+                catch
+                {
+                    // Ignore errors
+                }
+            }
 
             logger.WorkerStarts(workerId);
 
