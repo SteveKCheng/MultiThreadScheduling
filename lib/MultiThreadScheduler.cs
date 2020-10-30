@@ -348,7 +348,7 @@ namespace MultiThreadScheduling
             // Cap at CPU quota, if requested.
             // FIXME For dynamic updates to CPU quota we should read the quota ourselves
             if ((settings.Mode & MultiThreadCreationMode.CapThreadsAtCpuQuota) != 0)
-                numThreads = Math.Max(numThreads, Environment.ProcessorCount);
+                numThreads = Math.Min(numThreads, Environment.ProcessorCount);
 
             if (numThreads == 0)
                 numThreads = 1;
