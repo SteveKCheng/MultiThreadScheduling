@@ -225,21 +225,24 @@ namespace MultiThreadScheduling
         /// </remarks>
         public TItem[]? UnsafeGetItems()
         {
-            int t = Volatile.Read(ref this._top);
-            Interlocked.MemoryBarrier();
-            int b = Volatile.Read(ref this._bottom);
-            TItem[] storage = this._storage;
-            int capacity = storage.Length;
+            unchecked
+            {
+                int t = Volatile.Read(ref this._top);
+                Interlocked.MemoryBarrier();
+                int b = Volatile.Read(ref this._bottom);
+                TItem[] storage = this._storage;
+                int capacity = storage.Length;
 
-            int numItems = b - t;
-            if (numItems <= 0)
-                return null;
+                int numItems = b - t;
+                if (numItems <= 0)
+                    return null;
 
-            TItem[] items = new TItem[numItems];
-            for (int i = 0; i < numItems; ++i)
-                items[i] = storage[(i + t) & (capacity - 1)];
+                TItem[] items = new TItem[numItems];
+                for (int i = 0; i < numItems; ++i)
+                    items[i] = storage[(i + t) & (capacity - 1)];
 
-            return items;
+                return items;
+            }
         }
 
         /// <summary>
