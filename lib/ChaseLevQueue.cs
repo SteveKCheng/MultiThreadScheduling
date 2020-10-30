@@ -271,13 +271,13 @@ namespace MultiThreadScheduling
                     // Single last element in queue.
                     if (b == t)
                     {
-                        if (Interlocked.CompareExchange(ref this._top, t + 1, t) != t)
+                        bool success = (Interlocked.CompareExchange(ref this._top, t + 1, t) == t);
+                        this._bottom = b + 1;
+                        if (!success)
                         {
                             item = default!;
                             return false;
                         }
-
-                        this._bottom = b + 1;
                     }
 
                     // Erase the existing entry to avoid dangling references for GC.
